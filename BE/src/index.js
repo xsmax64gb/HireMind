@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
 
 testConnection().then(() => {
     app.listen(port, () => {
-        console.log(`app listening at http://localhost:${port}`)
+        console.log(`app listening on port ${port}`)
     })
 }).catch(err => {
     console.error('Failed to connect to database:', err.message)
