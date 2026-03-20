@@ -6,6 +6,12 @@
   --color-primary-500: #3b82f6;
   --color-primary-600: #2563eb;
   --color-primary-700: #1d4ed8;
+  
+  --color-primary: #000000;
+  --color-background-light: #ffffff;
+  --color-background-dark: #191919;
+  
+  --font-display: Inter, sans-serif;
 }
 
 /* Các css override tùy chỉnh thêm ở đây */
@@ -15,6 +21,15 @@ body {
 }
 
 @layer utilities {
+  .shadcn-card {
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+  }
+  .shadcn-card:hover {
+    border-color: #000000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+
   .focus-ring:focus {
     outline: 2px solid transparent;
     outline-offset: 2px;
@@ -46,4 +61,5 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
