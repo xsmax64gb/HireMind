@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { registerApi, verifyOtpApi } from '@/features/auth/api/authApi';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const RegisterPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [otpSent, setOtpSent] = useState(false);
 
   const otpRefs = useRef([]);
 
@@ -39,26 +42,63 @@ const RegisterPage = () => {
     }
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+  const handleSendOtp = async () => {
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return;
     }
-    
+    const nameValue = role === 'candidate' ? fullName : companyName;
+    if (!nameValue || !email || !password) {
+      setError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setSuccess(null);
+    
     try {
-      // Gọi API đăng ký
-      // const response = await registerApi({ role, fullName, email, otp: otp.join(''), password });
-      
-      // Giả lập đăng ký thành công
+      const response = await registerApi({
+        name: nameValue,
+        email,
+        password,
+        role: role === 'candidate' ? 'candidate' : 'employer' ? 'recruiter' : role
+      });
+      setSuccess(response.message || 'Mã xác nhận OTP đã được gửi qua email.');
+      setOtpSent(true);
+    } catch (err) {
+      setError(err?.message || 'Có lỗi xảy ra khi yêu cầu đăng ký.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!otpSent) {
+      await handleSendOtp();
+      return;
+    }
+    
+    // Attempt Verify OTP
+    const otpCode = otp.join('');
+    if (otpCode.length < 6) {
+      setError('Vui lòng nhập đủ 6 số mã OTP');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await verifyOtpApi({ email, otp: otpCode });
+      setSuccess(response.message || 'Đăng ký thành công!');
       setTimeout(() => {
         navigate('/login');
-        setLoading(false);
-      }, 1000);
+      }, 1500);
     } catch (err) {
-      setError(err.message || 'Đã có lỗi xảy ra khi đăng ký');
+      setError(err?.message || 'Có lỗi khi xác thực OTP.');
+    } finally {
       setLoading(false);
     }
   };
@@ -114,6 +154,7 @@ const RegisterPage = () => {
 
           <form onSubmit={handleRegister} className="space-y-4">
             {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
+            {success && <p className="text-green-500 text-sm font-medium text-center">{success}</p>}
             
             {/* Dynamic Name Field based on Role */}
             {role === 'candidate' ? (
@@ -165,29 +206,31 @@ const RegisterPage = () => {
             </div>
             
             {/* OTPSection */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium block">Mã xác nhận OTP</label>
-                <button className="text-xs text-gray-500 hover:text-black underline" type="button" disabled={loading}>
-                  Gửi lại mã
-                </button>
+            {otpSent && (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm font-medium block">Mã xác nhận OTP</label>
+                  <button onClick={handleSendOtp} className="text-xs text-gray-500 hover:text-black underline" type="button" disabled={loading}>
+                    Gửi lại mã
+                  </button>
+                </div>
+                <div className="flex gap-2 justify-between" id="otp-container">
+                  {otp.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (otpRefs.current[index] = el)}
+                      className="otp-input w-12 h-12 text-center text-lg font-semibold border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                      maxLength={1}
+                      type="text"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      disabled={loading}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-2 justify-between" id="otp-container">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (otpRefs.current[index] = el)}
-                    className="otp-input w-12 h-12 text-center text-lg font-semibold border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
-                    maxLength={1}
-                    type="text"
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    disabled={loading}
-                  />
-                ))}
-              </div>
-            </div>
+            )}
             
             {/* Password */}
             <div className="space-y-1">
@@ -227,7 +270,9 @@ const RegisterPage = () => {
               type="submit"
               disabled={loading}
             >
-              {loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+              {loading 
+                ? (otpSent ? 'Đang xác nhận...' : 'Đang xử lý...') 
+                : (otpSent ? 'Xác thực & Hoàn tất' : 'Đăng ký')}
             </button>
           </form>
 

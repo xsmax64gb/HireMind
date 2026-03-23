@@ -19,6 +19,7 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminCandidates from '@/pages/admin/AdminCandidates';
 import AdminRecruiters from '@/pages/admin/AdminRecruiters';
 import AdminJobs from '@/pages/admin/AdminJobs';
+import ProtectedRoute from '@/components/common/ProtectedRoute';
 
 function App() {
   return (
@@ -31,19 +32,19 @@ function App() {
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
         <Route path="/interview/:id" element={<MockInterview />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/profile/cv" element={<ProfileCV />} />
-        <Route path="/profile/applications" element={<ProfileApplications />} />
-        <Route path="/recruiter/jobs" element={<RecruiterJobs />} />
-        <Route path="/recruiter/jobs/:id/candidates" element={<RecruiterJobCandidates />} />
-        <Route path="/recruiter/post-job" element={<RecruiterPostJob />} />
-        <Route path="/recruiter/interviews" element={<RecruiterInterviews />} />
-        <Route path="/recruiter/dashboard" element={<RecruiterDashboard />} />
-        <Route path="/recruiter/profile" element={<RecruiterProfile />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/candidates" element={<AdminCandidates />} />
-        <Route path="/admin/recruiters" element={<AdminRecruiters />} />
-        <Route path="/admin/jobs" element={<AdminJobs />} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/profile/cv" element={<ProtectedRoute><ProfileCV /></ProtectedRoute>} />
+        <Route path="/profile/applications" element={<ProtectedRoute><ProfileApplications /></ProtectedRoute>} />
+        <Route path="/recruiter/jobs" element={<ProtectedRoute><RecruiterJobs /></ProtectedRoute>} />
+        <Route path="/recruiter/jobs/:id/candidates" element={<ProtectedRoute><RecruiterJobCandidates /></ProtectedRoute>} />
+        <Route path="/recruiter/post-job" element={<ProtectedRoute><RecruiterPostJob /></ProtectedRoute>} />
+        <Route path="/recruiter/interviews" element={<ProtectedRoute><RecruiterInterviews /></ProtectedRoute>} />
+        <Route path="/recruiter/dashboard" element={<ProtectedRoute><RecruiterDashboard /></ProtectedRoute>} />
+        <Route path="/recruiter/profile" element={<ProtectedRoute><RecruiterProfile /></ProtectedRoute>} />
+        <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/candidates" element={<ProtectedRoute><AdminCandidates /></ProtectedRoute>} />
+        <Route path="/admin/recruiters" element={<ProtectedRoute><AdminRecruiters /></ProtectedRoute>} />
+        <Route path="/admin/jobs" element={<ProtectedRoute><AdminJobs /></ProtectedRoute>} />
         <Route path="*" element={<div className="p-8">404 - Không tìm thấy trang</div>} />
       </Routes>
     </Router>

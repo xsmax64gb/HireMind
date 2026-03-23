@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { forgotPasswordApi, resetPasswordApi } from '@/features/auth/api/authApi';
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const ForgotPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const otpRefs = useRef([]);
 
@@ -33,14 +35,14 @@ const ForgotPasswordPage = () => {
     if (!email) return setError('Vui lòng nhập email');
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
-      // Giả lập API gửi OTP
-      setTimeout(() => {
-        setStep(2);
-        setLoading(false);
-      }, 1000);
+      const response = await forgotPasswordApi({ email });
+      setSuccess(response.message || 'Mã xác nhận đã được gửi thành công.');
+      setStep(2);
     } catch (err) {
-      setError('Lỗi gửi mã OTP');
+      setError(err?.message || 'Lỗi gửi mã OTP');
+    } finally {
       setLoading(false);
     }
   };
@@ -57,14 +59,20 @@ const ForgotPasswordPage = () => {
 
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
-      // Giả lập API đặt lại mật khẩu
+      const response = await resetPasswordApi({ 
+        email, 
+        otp: otpValue, 
+        newPassword: password 
+      });
+      setSuccess(response.message || 'Mật khẩu đã được cập nhật thành công!');
       setTimeout(() => {
         navigate('/login');
-        setLoading(false);
       }, 1500);
     } catch (err) {
-      setError('Có lỗi xảy ra khi đặt lại mật khẩu');
+      setError(err?.message || 'Có lỗi xảy ra khi đặt lại mật khẩu');
+    } finally {
       setLoading(false);
     }
   };
@@ -89,6 +97,7 @@ const ForgotPasswordPage = () => {
           {step === 1 ? (
             <form onSubmit={handleSendOtp} className="space-y-4">
               {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
+              {success && <p className="text-green-500 text-sm font-medium text-center">{success}</p>}
               <div className="space-y-2 text-left">
                 <label className="text-sm font-medium leading-none" htmlFor="email">Email</label>
                 <input 
@@ -114,6 +123,7 @@ const ForgotPasswordPage = () => {
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
+              {success && <p className="text-green-500 text-sm font-medium text-center">{success}</p>}
               
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginApi } from '@/features/auth/api/authApi';
-import { setToken } from '@/utils/authUtils';
+import { setToken, setUser } from '@/utils/authUtils';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -12,21 +12,35 @@ const LoginPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!email || !password) {
+      setError('Vui lòng điền đủ thông tin');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      // Trong thực tế, gọi logic API thông qua Redux hoặc Axios
-      // const response = await loginApi({ email, password });
-      // setToken(response.token);
+      const response = await loginApi({ email, password });
       
-      // Giả lập login thành công để test UI
-      setTimeout(() => {
-        setToken("fake-jwt-token");
-        navigate('/dashboard'); 
-        setLoading(false);
-      }, 1000);
+      // Save tokens and user info
+      if (response.accessToken) {
+        setToken(response.accessToken);
+        if (response.refreshToken) {
+          localStorage.setItem('refreshToken', response.refreshToken);
+        }
+        setUser(response.user);
+        
+        // Redirect based on role
+        if (response.user.role === 'recruiter') {
+          navigate('/recruiter/dashboard');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setError('Đăng nhập thất bại: Không nhận được token.');
+      }
     } catch (err) {
-      setError(err.message || 'Sai thông tin đăng nhập');
+      setError(err?.message || 'Sai thông tin đăng nhập hoặc lỗi server');
+    } finally {
       setLoading(false);
     }
   };

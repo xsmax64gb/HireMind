@@ -1,7 +1,16 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { getUser, removeToken, removeUser } from '@/utils/authUtils';
 
 const RecruiterDashboard = () => {
+  const navigate = useNavigate();
+  const user = getUser();
+
+  const handleLogout = () => {
+    removeToken();
+    removeUser();
+    navigate('/login');
+  };
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex font-display antialiased overflow-hidden">
       
@@ -41,12 +50,14 @@ const RecruiterDashboard = () => {
         
         <div className="p-5 border-t border-slate-200 bg-slate-50/50">
           <div className="flex items-center gap-3 w-full">
-            <div className="size-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-lg border border-slate-800 shadow-sm">A</div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-[13px] font-bold text-slate-900 truncate">Alex Nguyen</span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold truncate">HR Manager</span>
+            <div className="size-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-lg border border-slate-800 shadow-sm">
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'R'}
             </div>
-            <button className="text-slate-400 hover:text-rose-600 transition-colors tooltip" title="Đăng xuất">
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-[13px] font-bold text-slate-900 truncate">{user?.name || 'Nhà tuyển dụng'}</span>
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold truncate">Premium Recruiter</span>
+            </div>
+            <button onClick={handleLogout} className="text-slate-400 hover:text-rose-600 transition-colors tooltip" title="Đăng xuất">
               <span className="material-symbols-outlined text-[18px]">logout</span>
             </button>
           </div>
@@ -78,7 +89,7 @@ const RecruiterDashboard = () => {
             {/* Greeting Section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-slate-900">Chào mừng trở lại, Alex! 👋</h1>
+                <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-slate-900">Chào mừng trở lại, {user?.name || 'Nhà tuyển dụng'}! 👋</h1>
                 <p className="text-slate-500 text-[15px]">Đây là tổng quan về tình hình tuyển dụng của bạn hôm nay.</p>
               </div>
               <div className="flex gap-3 shrink-0 mb-1">

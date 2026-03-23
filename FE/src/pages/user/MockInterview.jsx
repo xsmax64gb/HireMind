@@ -20,7 +20,7 @@ const MockInterview = () => {
           <nav className="hidden md:flex items-center gap-6">
             <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/">Trang chủ</Link>
             <Link className="text-sm font-bold text-primary border-b-2 border-primary" to="/jobs">Tuyển dụng</Link>
-            <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/solutions">Giải pháp</Link>
+
           </nav>
           <div className="flex items-center gap-4 flex-1 justify-end">
             <button className="p-1.5 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-full transition-all">

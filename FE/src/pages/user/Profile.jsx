@@ -1,10 +1,142 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { userApi } from '@/features/user/api/userApi';
+import { removeToken, removeUser, getUser } from '@/utils/authUtils';
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
+  const currentUser = getUser();
+
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    bio: '',
+    position: '',
+    company_description: '',
+    address: '',
+    date_of_birth: '',
+    gender: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [passwords, setPasswords] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const data = await userApi.getProfile();
+      setProfile({
+        name: data.name || '',
+        email: data.email || '',
+        role: data.role || '',
+        phone: data.phone || '',
+        bio: data.bio || data.company_description || '',
+        position: data.position || '',
+        company_description: data.company_description || '',
+        address: data.address || data.company_address || '',
+        date_of_birth: data.date_of_birth || '',
+        gender: data.gender || ''
+      });
+    } catch (error) {
+      showMessage('error', 'Lỗi khi tải thông tin: ' + (error?.message || 'Lỗi server'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  };
+
+  const handleProfileChange = (e) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordChange = (e) => {
+    setPasswords({ ...passwords, [e.target.name]: e.target.value });
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      setUpdatingProfile(true);
+
+      // Update data structure based on role if needed, or backend handles it
+      const updateData = {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        bio: profile.bio,
+        position: profile.position,
+        address: profile.address,
+        date_of_birth: profile.date_of_birth,
+        gender: profile.gender
+      };
+
+      await userApi.updateProfile(updateData);
+      showMessage('success', 'Cập nhật thông tin thành công!');
+    } catch (error) {
+      showMessage('error', 'Cập nhật thất bại: ' + (error?.message || 'Lỗi server'));
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      return showMessage('error', 'Mật khẩu xác nhận không khớp!');
+    }
+    try {
+      setUpdatingPassword(true);
+      await userApi.changePassword({
+        currentPassword: passwords.currentPassword,
+        newPassword: passwords.newPassword
+      });
+      showMessage('success', 'Đổi mật khẩu thành công!');
+      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      showMessage('error', 'Đổi mật khẩu thất bại: ' + (error?.message || 'Lỗi server'));
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  const handleLogout = () => {
+    removeToken();
+    removeUser();
+    navigate('/login');
+  };
+
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case 'candidate': return 'Ứng viên';
+      case 'recruiter': return 'Nhà tuyển dụng';
+      case 'admin': return 'Quản trị viên';
+      default: return 'Người dùng';
+    }
+  };
+
+  if (loading) {
+    return <div className="h-screen flex items-center justify-center">Đang tải thông tin...</div>;
+  }
+
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex flex-col font-display antialiased">
-      {/* Top Navigation Bar - Matching Jobs.jsx EXACTLY */}
+      {/* Top Navigation Bar - Matching Home.jsx */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8 flex-1">
@@ -16,22 +148,38 @@ const ProfilePage = () => {
             </Link>
           </div>
           <nav className="hidden md:flex items-center gap-6">
-            <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/">Trang chủ</Link>
+            <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/">Home</Link>
             <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/jobs">Tuyển dụng</Link>
-            <Link className="text-sm font-medium text-slate-600 hover:text-primary transition-colors" to="/solutions">Giải pháp</Link>
+
           </nav>
           <div className="flex items-center gap-4 flex-1 justify-end">
             <button className="p-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-full transition-all">
               <span className="material-symbols-outlined text-[24px]">notifications</span>
             </button>
             <div className="h-8 w-[1px] bg-slate-200 mx-1"></div>
-            {/* Logged in state: User profile icon */}
-            <Link to="/profile" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-slate-200 hover:border-slate-300 transition-all bg-slate-50">
-              <span className="text-xs font-semibold px-2">Hồ sơ</span>
-              <div className="size-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-sm text-slate-500">person</span>
+
+            {/* User Profile Dropdown */}
+            <div className="relative group">
+              <Link to="/profile" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-slate-200 hover:border-slate-300 transition-all bg-slate-50 cursor-pointer">
+                <span className="text-xs font-semibold px-2">Hồ sơ</span>
+                <div className="size-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+                  <span className="material-symbols-outlined text-sm text-slate-500">person</span>
+                </div>
+              </Link>
+              {/* Dropdown Menu */}
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="p-2 space-y-1">
+                  <Link to="/profile" className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 rounded-md hover:bg-slate-50 transition-colors">
+                    <span className="material-symbols-outlined text-[18px]">account_circle</span>
+                    Quản lý tài khoản
+                  </Link>
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-600 rounded-md hover:bg-rose-50 transition-colors">
+                    <span className="material-symbols-outlined text-[18px]">logout</span>
+                    Đăng xuất
+                  </button>
+                </div>
               </div>
-            </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -41,9 +189,11 @@ const ProfilePage = () => {
         <aside className="w-64 border-r border-slate-200 bg-slate-50/50 shrink-0 flex flex-col py-8">
           <div className="px-6 mb-8">
             <div className="flex items-center gap-3 w-full">
-              <div className="size-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xl border border-slate-300 shadow-sm">A</div>
+              <div className="size-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xl border border-slate-300 shadow-sm">
+                {profile.name ? profile.name.charAt(0).toUpperCase() : 'U'}
+              </div>
               <div className="flex flex-col flex-1 truncate">
-                <span className="text-[15px] font-bold text-slate-900 truncate">Nguyễn Văn A</span>
+                <span className="text-[15px] font-bold text-slate-900 truncate">{profile.name}</span>
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold truncate">Premium Member</span>
               </div>
             </div>
@@ -54,20 +204,21 @@ const ProfilePage = () => {
               <span className="material-symbols-outlined text-[20px]">account_circle</span>
               <span className="text-[13px]">Hồ sơ</span>
             </Link>
-            <Link to="/profile/cv" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 transition-colors font-semibold">
-              <span className="material-symbols-outlined text-[20px]">description</span>
-              <span className="text-[13px]">CV của tôi</span>
-            </Link>
-            <Link to="/profile/applications" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 transition-colors font-semibold">
-              <span className="material-symbols-outlined text-[20px]">work</span>
-              <span className="text-[13px]">Đơn ứng tuyển</span>
-            </Link>
-            <Link to="/profile/settings" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 transition-colors font-semibold">
-              <span className="material-symbols-outlined text-[20px]">settings</span>
-              <span className="text-[13px]">Cài đặt</span>
-            </Link>
+            {profile.role === 'candidate' && (
+              <>
+                <Link to="/profile/cv" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 transition-colors font-semibold">
+                  <span className="material-symbols-outlined text-[20px]">description</span>
+                  <span className="text-[13px]">CV của tôi</span>
+                </Link>
+                <Link to="/profile/applications" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 transition-colors font-semibold">
+                  <span className="material-symbols-outlined text-[20px]">work</span>
+                  <span className="text-[13px]">Đơn ứng tuyển</span>
+                </Link>
+              </>
+            )}
+
             <div className="pt-2 mt-2 border-t border-slate-200/50">
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold">
                 <span className="material-symbols-outlined text-[20px]">logout</span>
                 <span className="text-[13px]">Đăng xuất tài khoản</span>
               </button>
@@ -76,8 +227,19 @@ const ProfilePage = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 bg-white p-12 overflow-y-auto">
-          <div className="max-w-5xl">
+        <main className="flex-1 bg-white p-12 overflow-y-auto w-full">
+          <div className="max-w-4xl mx-auto">
+
+            {/* Toast Notification */}
+            {message.text && (
+              <div className={`fixed bottom-8 right-8 z-[100] min-w-[320px] p-5 rounded-2xl font-bold text-[15px] border shadow-2xl flex items-center gap-3 animate-bounce ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-emerald-500/20' : 'bg-rose-50 text-rose-800 border-rose-300 shadow-rose-500/20'}`}>
+                <span className="material-symbols-outlined text-[24px]">
+                  {message.type === 'success' ? 'check_circle' : 'error'}
+                </span>
+                <span className="flex-1">{message.text}</span>
+              </div>
+            )}
+
             {/* Thông tin cá nhân */}
             <section className="mb-16">
               <div className="mb-10">
@@ -85,22 +247,29 @@ const ProfilePage = () => {
                 <p className="text-slate-500 text-[15px]">Cập nhật thông tin cá nhân và tóm tắt chuyên môn của bạn để thu hút nhà tuyển dụng.</p>
               </div>
 
-              <div className="flex flex-col gap-8">
+              <form onSubmit={handleUpdateProfile} className="flex flex-col gap-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Họ và tên</label>
-                    <input 
-                      type="text" 
-                      defaultValue="Nguyễn Văn A" 
+                    <input
+                      type="text"
+                      name="name"
+                      value={profile.name}
+                      onChange={handleProfileChange}
+                      required
                       className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
                     />
                   </div>
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Email liên hệ</label>
-                    <input 
-                      type="email" 
-                      defaultValue="nguyen.vana@example.com" 
-                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
+                    <input
+                      type="email"
+                      name="email"
+                      value={profile.email}
+                      onChange={handleProfileChange}
+                      required
+                      disabled
+                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed outline-none transition-all text-[15px] font-medium shadow-sm"
                     />
                   </div>
                 </div>
@@ -108,37 +277,94 @@ const ProfilePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Vai trò</label>
-                    <input 
-                      type="text" 
-                      defaultValue="Chuyên viên Tuyển dụng Cao cấp" 
-                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
+                    <input
+                      type="text"
+                      value={getRoleDisplayName(profile.role)}
+                      disabled
+                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed outline-none transition-all text-[15px] font-medium shadow-sm"
                     />
                   </div>
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Số điện thoại</label>
-                    <input 
-                      type="tel" 
-                      defaultValue="090 123 4567" 
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={profile.phone}
+                      onChange={handleProfileChange}
                       className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
                     />
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2.5">
+                    <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Địa chỉ</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={profile.address}
+                      onChange={handleProfileChange}
+                      placeholder="VD: Quận 1, TP. HCM"
+                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
+                    />
+                  </div>
+                  {profile.role === 'candidate' && (
+                    <div className="space-y-2.5">
+                      <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Giới tính</label>
+                      <div className="relative">
+                        <select
+                          name="gender"
+                          value={profile.gender}
+                          onChange={handleProfileChange}
+                          className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm appearance-none bg-white"
+                        >
+                          <option value="">Chọn giới tính</option>
+                          <option value="male">Nam</option>
+                          <option value="female">Nữ</option>
+                          <option value="other">Khác</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                          <span className="material-symbols-outlined text-lg">expand_more</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {profile.role === 'candidate' && (
+                  <div className="space-y-2.5">
+                    <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Ngày sinh</label>
+                    <input
+                      type="date"
+                      name="date_of_birth"
+                      value={profile.date_of_birth}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm"
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2.5">
-                  <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Tóm tắt chuyên môn</label>
-                  <textarea 
+                  <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Tóm tắt chuyên môn / Giới thiệu</label>
+                  <textarea
                     rows={4}
-                    defaultValue="Hơn 5 năm kinh nghiệm trong lĩnh vực tuyển dụng nhân sự mảng IT. Có khả năng xây dựng chiến lược thu hút nhân tài và tối ưu hóa quy trình phỏng vấn."
+                    name="bio"
+                    value={profile.bio}
+                    onChange={handleProfileChange}
                     className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-[15px] font-medium text-slate-800 shadow-sm resize-none leading-relaxed"
                   ></textarea>
                 </div>
 
                 <div className="flex justify-end pt-6 border-t border-slate-100">
-                  <button className="bg-primary text-white font-bold py-3 px-8 rounded-xl hover:opacity-90 transition-opacity text-sm shadow-lg shadow-primary/20">
-                    Lưu thay đổi
+                  <button
+                    type="submit"
+                    disabled={updatingProfile}
+                    className="bg-black text-white font-bold py-3 px-8 rounded-xl hover:opacity-90 transition-opacity text-sm shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {updatingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
                   </button>
                 </div>
-              </div>
+              </form>
             </section>
 
             {/* Đổi mật khẩu */}
@@ -148,12 +374,15 @@ const ProfilePage = () => {
                 <p className="text-slate-500 text-[15px]">Đảm bảo tài khoản của bạn đang sử dụng một mật khẩu dài và ngẫu nhiên để giữ an toàn.</p>
               </div>
 
-              <div className="flex flex-col gap-8">
+              <form onSubmit={handleUpdatePassword} className="flex flex-col gap-8">
                 <div className="space-y-2.5 max-w-md">
                   <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Mật khẩu hiện tại</label>
-                  <input 
-                    type="password" 
-                    defaultValue="12345678" 
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={passwords.currentPassword}
+                    onChange={handlePasswordChange}
+                    required
                     className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-lg tracking-widest text-slate-800 shadow-sm"
                   />
                 </div>
@@ -161,28 +390,40 @@ const ProfilePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Mật khẩu mới</label>
-                    <input 
-                      type="password" 
-                      placeholder="••••••••" 
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      name="newPassword"
+                      value={passwords.newPassword}
+                      onChange={handlePasswordChange}
+                      required
                       className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-lg tracking-widest text-slate-800 shadow-sm"
                     />
                   </div>
                   <div className="space-y-2.5">
                     <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Xác nhận mật khẩu mới</label>
-                    <input 
-                      type="password" 
-                      placeholder="••••••••" 
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      name="confirmPassword"
+                      value={passwords.confirmPassword}
+                      onChange={handlePasswordChange}
+                      required
                       className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-lg tracking-widest text-slate-800 shadow-sm"
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-6 border-t border-slate-100">
-                  <button className="bg-primary text-white font-bold py-3 px-8 rounded-xl hover:opacity-90 transition-opacity text-sm shadow-lg shadow-primary/20">
-                    Cập nhật mật khẩu
+                  <button
+                    type="submit"
+                    disabled={updatingPassword}
+                    className="bg-black text-white font-bold py-3 px-8 rounded-xl hover:opacity-90 transition-opacity text-sm shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {updatingPassword ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
                   </button>
                 </div>
-              </div>
+              </form>
             </section>
           </div>
         </main>

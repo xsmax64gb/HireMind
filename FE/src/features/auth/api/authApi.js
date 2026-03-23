@@ -8,3 +8,15 @@ export const loginApi = async (credentials) => {
 export const registerApi = async (data) => {
   return apiClient.post('/auth/register', data);
 };
+
+export const verifyOtpApi = async (data) => {
+  return apiClient.post('/auth/verify-otp', data);
+};
+
+export const forgotPasswordApi = async (data) => {
+  return apiClient.post('/auth/forgot-password', data);
+};
+
+export const resetPasswordApi = async (data) => {
+  return apiClient.post('/auth/reset-password', data);
+};
