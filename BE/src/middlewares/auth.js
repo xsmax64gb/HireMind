@@ -1,8 +1,9 @@
 import { verifyToken as verifyJwt } from '../config/jwt.js';
+import { pool } from '../config/db.js';
 
 export const authMiddleware = {
     // 1. Kiểm tra token có hợp lệ không
-    verifyToken(req, res, next) {
+    async verifyToken(req, res, next) {
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,9 +17,28 @@ export const authMiddleware = {
             return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
         }
 
-        // Gán thông tin user (đã giải mã từ token) vào req để các middleware/controller sau sử dụng
-        req.user = decoded;
-        next();
+        // Check user status from database
+        try {
+            const [rows] = await pool.execute('SELECT status, role FROM users WHERE id = ?', [decoded.id]);
+            const user = rows[0];
+
+            if (!user) {
+                return res.status(404).json({ message: 'Người dùng không tồn tại.' });
+            }
+
+            if (user.status !== 'active' && user.role !== 'admin') { // Allow admin to login anyway? No, maybe admin should be active too.
+                // Let's bar anyone not active, except maybe during some specific flows? No, "không dùng được web"
+                const vnMsg = user.status === 'banned' ? 'bị khóa' : 'đã ngừng hoạt động';
+                return res.status(403).json({ message: `Tài khoản của bạn ${vnMsg}.` });
+            }
+
+            // Gán thông tin user (đã giải mã từ token) vào req
+            req.user = decoded;
+            next();
+        } catch (error) {
+            console.error('Middleware check status error:', error);
+            return res.status(500).json({ message: 'Lỗi server khi xác thực quyền truy cập.' });
+        }
     },
 
     // 2. Kiểm tra quyền Admin

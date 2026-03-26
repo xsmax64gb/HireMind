@@ -1,75 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getUser } from '@/utils/authUtils';
+import RecruiterSidebar from '@/components/common/RecruiterSidebar';
+import RecruiterHeader from '@/components/common/RecruiterHeader';
 
 const RecruiterInterviews = () => {
+  const user = getUser();
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex font-display antialiased overflow-hidden">
       
-      {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-200 bg-white shrink-0 hidden lg:flex flex-col h-full z-20">
-        <div className="h-16 flex items-center px-6 border-b border-slate-200">
-          <Link className="flex items-center gap-2 group" to="/">
-            <div className="bg-primary text-white p-1 rounded">
-              <span className="material-symbols-outlined block text-[18px]">temp_preferences_custom</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-primary">HireMind</span>
-          </Link>
-        </div>
-        
-        <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
-          <Link to="/recruiter/dashboard" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors font-semibold">
-            <span className="material-symbols-outlined text-[20px]">dashboard</span>
-            <span className="text-[13px]">Tổng quan</span>
-          </Link>
-          <Link to="/recruiter/profile" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors font-semibold">
-            <span className="material-symbols-outlined text-[20px]">account_circle</span>
-            <span className="text-[13px]">Hồ sơ công ty</span>
-          </Link>
-          <Link to="/recruiter/post-job" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors font-semibold">
-            <span className="material-symbols-outlined text-[20px]">post_add</span>
-            <span className="text-[13px]">Đăng tin tuyển dụng</span>
-          </Link>
-          <Link to="/recruiter/jobs" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors font-semibold">
-            <span className="material-symbols-outlined text-[20px]">work</span>
-            <span className="text-[13px]">Tin tuyển dụng</span>
-          </Link>
-          <Link to="/recruiter/interviews" className="flex items-center gap-3 px-4 py-3 bg-slate-100 text-primary rounded-xl transition-colors font-bold">
-            <span className="material-symbols-outlined text-[20px]">quiz</span>
-            <span className="text-[13px]">Tạo câu hỏi Phỏng vấn</span>
-          </Link>
-        </nav>
-        
-        <div className="p-5 border-t border-slate-200 bg-slate-50/50">
-          <div className="flex items-center gap-3 w-full">
-            <div className="size-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-lg border border-slate-800 shadow-sm">A</div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-[13px] font-bold text-slate-900 truncate">Alex Nguyen</span>
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold truncate">HR Manager</span>
-            </div>
-            <button className="text-slate-400 hover:text-rose-600 transition-colors tooltip" title="Đăng xuất">
-              <span className="material-symbols-outlined text-[18px]">logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <RecruiterSidebar activeTab="interviews" user={user} />
 
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        {/* Header */}
-        <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-end px-8 shrink-0 z-10 hidden sm:flex">
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-slate-500 hover:text-primary hover:bg-slate-100 rounded-full transition-all relative">
-              <span className="material-symbols-outlined text-[24px]">notifications</span>
-              <span className="absolute top-2 right-2 size-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-8 w-[1px] bg-slate-200 mx-1"></div>
-            <Link to="/recruiter/profile" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border border-slate-200 hover:border-slate-300 transition-all bg-slate-50">
-              <span className="text-xs font-semibold px-2">Hồ sơ HR</span>
-              <div className="size-8 rounded-full bg-slate-900 flex items-center justify-center">
-                <span className="material-symbols-outlined text-sm text-white">person</span>
-              </div>
-            </Link>
-          </div>
-        </header>
+        <RecruiterHeader user={user} />
 
         {/* Main Content */}
         <main className="flex-1 p-6 lg:p-12 overflow-y-auto w-full">

@@ -186,6 +186,107 @@ class UserModel {
         const [rows] = await pool.execute('SELECT password FROM users WHERE id = ?', [id]);
         return rows[0];
     }
+
+    // --- Admin Methods ---
+
+    static async findAllCandidates({ search, startDate, endDate, sort = 'desc', limit = 10, offset = 0 }) {
+        let whereClause = "WHERE u.role = 'candidate'";
+        const params = [];
+
+        if (search) {
+            whereClause += ' AND (u.name LIKE ? OR u.email LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+        }
+
+        if (startDate) {
+            whereClause += ' AND u.created_at >= ?';
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            whereClause += ' AND u.created_at <= ?';
+            params.push(endDate);
+        }
+
+        const countQuery = `SELECT COUNT(*) as total FROM users u ${whereClause}`;
+        const [countRows] = await pool.execute(countQuery, params);
+        const total = countRows[0].total;
+
+        let query = `
+            SELECT u.id, u.name, u.email, u.avatar, u.status, u.created_at,
+                   cp.phone, cp.address, cp.date_of_birth, cp.gender, cp.experience_years, cp.education, cp.bio
+            FROM users u
+            LEFT JOIN candidate_profiles cp ON u.id = cp.user_id
+            ${whereClause}
+        `;
+
+        if (sort === 'asc') {
+            query += ' ORDER BY u.created_at ASC';
+        } else {
+            query += ' ORDER BY u.created_at DESC';
+        }
+
+        query += ' LIMIT ? OFFSET ?';
+        params.push(String(limit), String(offset));
+
+        const [rows] = await pool.execute(query, params);
+        return { users: rows, total };
+    }
+
+    static async findAllRecruiters({ search, startDate, endDate, sort = 'desc', limit = 10, offset = 0 }) {
+        let whereClause = "WHERE u.role = 'recruiter'";
+        const params = [];
+
+        if (search) {
+            whereClause += ' AND (u.name LIKE ? OR u.email LIKE ? OR rp.company_name LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        if (startDate) {
+            whereClause += ' AND u.created_at >= ?';
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            whereClause += ' AND u.created_at <= ?';
+            params.push(endDate);
+        }
+
+        const countQuery = `SELECT COUNT(*) as total FROM users u LEFT JOIN recruiter_profiles rp ON u.id = rp.user_id ${whereClause}`;
+        const [countRows] = await pool.execute(countQuery, params);
+        const total = countRows[0].total;
+
+        let query = `
+            SELECT u.id, u.name, u.email, u.avatar, u.status, u.created_at,
+                   rp.position, rp.company_name, rp.company_website, rp.company_size, 
+                   rp.company_address, rp.company_description, rp.company_logo_url
+            FROM users u
+            LEFT JOIN recruiter_profiles rp ON u.id = rp.user_id
+            ${whereClause}
+        `;
+
+        if (sort === 'asc') {
+            query += ' ORDER BY u.created_at ASC';
+        } else {
+            query += ' ORDER BY u.created_at DESC';
+        }
+
+        query += ' LIMIT ? OFFSET ?';
+        params.push(String(limit), String(offset));
+
+        const [rows] = await pool.execute(query, params);
+        return { users: rows, total };
+    }
+
+    static async updateStatus(id, status) {
+        await pool.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+    }
+
+    static async deleteUser(id) {
+        // Cascade delete will handle profiles, but let's be safe if needed.
+        // In our DB.md, we have ON DELETE CASCADE for profiles and cv_files etc.
+        await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+    }
 }
 
 export default UserModel;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getUser, removeToken, removeUser } from '@/utils/authUtils';
 import jobService from '@/services/jobService';
 import RecruiterSidebar from '@/components/common/RecruiterSidebar';
 import RecruiterHeader from '@/components/common/RecruiterHeader';
 
-const RecruiterPostJob = () => {
+const RecruiterEditJob = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const user = getUser();
   
@@ -27,8 +28,42 @@ const RecruiterPostJob = () => {
   });
 
   const [skillInput, setSkillInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchJobDetail = async () => {
+      try {
+        const data = await jobService.getJobById(id);
+        // Format deadline for date input (YYYY-MM-DD)
+        const formattedDeadline = data.deadline ? new Date(data.deadline).toISOString().split('T')[0] : '';
+        
+        setFormData({
+          title: data.title || '',
+          location: data.location || '',
+          employment_type: data.employment_type || 'fulltime',
+          experience_level: data.experience_level || 'junior',
+          salary_min: data.salary_min || '',
+          salary_max: data.salary_max || '',
+          currency: data.currency || 'VNĐ',
+          description: data.description || '',
+          requirements: data.requirements || '',
+          benefits: data.benefits || '',
+          quantity: data.quantity || 1,
+          deadline: formattedDeadline,
+          status: data.status || 'open',
+          skills: data.skills || []
+        });
+      } catch (err) {
+        console.error('Error fetching job details:', err);
+        setError('Không thể tải thông tin công việc.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchJobDetail();
+  }, [id]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -58,29 +93,27 @@ const RecruiterPostJob = () => {
     }));
   };
 
-  const handleSubmit = async (e, customStatus = 'open') => {
+  const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     setError('');
 
     try {
       const dataToSubmit = { 
         ...formData, 
-        status: customStatus,
-        // Convert numbers
         salary_min: formData.salary_min ? parseInt(formData.salary_min) : null,
         salary_max: formData.salary_max ? parseInt(formData.salary_max) : null,
         quantity: parseInt(formData.quantity)
       };
 
-      await jobService.createJob(dataToSubmit);
-      alert('Đăng tin tuyển dụng thành công!');
-      navigate('/recruiter/jobs');
+      await jobService.updateJob(id, dataToSubmit);
+      alert('Cập nhật tin tuyển dụng thành công!');
+      navigate(`/recruiter/jobs/${id}`);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra khi đăng tin.');
+      setError(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -90,35 +123,42 @@ const RecruiterPostJob = () => {
     navigate('/login');
   };
 
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex font-display antialiased overflow-hidden">
       
-      <RecruiterSidebar activeTab="post-job" user={user} />
+      <RecruiterSidebar activeTab="jobs" user={user} />
 
       <div className="flex-1 flex flex-col min-w-0 h-full">
         <RecruiterHeader user={user} />
 
         {/* Main Content */}
         <main className="flex-1 p-6 lg:p-12 overflow-y-auto w-full">
-          <form className="max-w-[1400px] mx-auto w-full" onSubmit={(e) => handleSubmit(e, 'open')}>
+          <form className="max-w-[1400px] mx-auto w-full" onSubmit={handleSubmit}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 w-full">
               <div>
-                <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-slate-900">Đăng tin tuyển dụng mới</h1>
-                <p className="text-slate-500 text-[15px]">Điền thông tin chi tiết để tìm ứng viên phù hợp nhất cho vị trí của bạn.</p>
+                <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-slate-900">Chỉnh sửa tin tuyển dụng</h1>
+                <p className="text-slate-500 text-[15px]">Cập nhật các thông tin để thu hút ứng viên tốt hơn.</p>
               </div>
               <div className="flex gap-3 shrink-0 mt-4 sm:mt-0">
                 <button 
                   type="button"
-                  onClick={() => handleSubmit(null, 'draft')}
-                  disabled={loading}
-                  className="px-5 py-2.5 text-sm font-bold border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors text-slate-700 shadow-sm disabled:opacity-50">
-                  Lưu bản nháp
+                  onClick={() => navigate(`/recruiter/jobs/${id}`)}
+                  className="px-5 py-2.5 text-sm font-bold border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors text-slate-700 shadow-sm">
+                  Hủy bỏ
                 </button>
                 <button 
                   type="submit"
-                  disabled={loading}
+                  disabled={submitting}
                   className="px-6 py-2.5 text-sm font-bold bg-primary text-white hover:opacity-90 rounded-xl transition-colors shadow-lg shadow-primary/20 disabled:opacity-50">
-                  {loading ? 'Đang xử lý...' : 'Đăng tin'}
+                  {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
             </div>
@@ -202,25 +242,21 @@ const RecruiterPostJob = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Tối thiểu</label>
-                      <div className="relative">
-                        <input 
-                          name="salary_min"
-                          value={formData.salary_min}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] shadow-sm font-bold text-slate-800" placeholder="0" type="number" 
-                        />
-                      </div>
+                      <input 
+                        name="salary_min"
+                        value={formData.salary_min}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] shadow-sm font-bold text-slate-800" placeholder="0" type="number" 
+                      />
                     </div>
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Tối đa</label>
-                      <div className="relative">
-                        <input 
-                          name="salary_max"
-                          value={formData.salary_max}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] shadow-sm font-bold text-slate-800" placeholder="Thỏa thuận" type="number" 
-                        />
-                      </div>
+                      <input 
+                        name="salary_max"
+                        value={formData.salary_max}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] shadow-sm font-bold text-slate-800" placeholder="Thỏa thuận" type="number" 
+                      />
                     </div>
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Đơn vị tiền tệ</label>
@@ -245,54 +281,30 @@ const RecruiterPostJob = () => {
                     <h3 className="text-xl font-bold text-slate-800">Nội dung chi tiết</h3>
                   </div>
                   <div className="space-y-8">
-                    {/* Description */}
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Mô tả công việc <span className="text-rose-500">*</span></label>
-                      <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:border-primary transition-all shadow-sm">
-                        <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_bold</span></button>
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_italic</span></button>
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_list_bulleted</span></button>
-                        </div>
-                        <textarea 
-                          name="description"
-                          value={formData.description}
-                          onChange={handleInputChange}
-                          required
-                          className="w-full px-5 py-4 border-none focus:ring-0 resize-y outline-none text-[15px] leading-relaxed font-medium" placeholder="Mô tả các nhiệm vụ hàng ngày..." rows="4"></textarea>
-                      </div>
+                      <textarea 
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-[15px] leading-relaxed font-medium" placeholder="Mô tả các nhiệm vụ hàng ngày..." rows="4"></textarea>
                     </div>
-
-                    {/* Requirements */}
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Yêu cầu công việc</label>
-                      <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:border-primary transition-all shadow-sm">
-                        <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_bold</span></button>
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_list_bulleted</span></button>
-                        </div>
-                        <textarea 
-                          name="requirements"
-                          value={formData.requirements}
-                          onChange={handleInputChange}
-                          className="w-full px-5 py-4 border-none focus:ring-0 resize-y outline-none text-[15px] leading-relaxed font-medium" placeholder="Các kỹ năng và kinh nghiệm cần thiết..." rows="4"></textarea>
-                      </div>
+                      <textarea 
+                        name="requirements"
+                        value={formData.requirements}
+                        onChange={handleInputChange}
+                        className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-[15px] leading-relaxed font-medium" placeholder="Các kỹ năng và kinh nghiệm cần thiết..." rows="4"></textarea>
                     </div>
-
-                    {/* Benefits */}
                     <div className="flex flex-col gap-2.5">
                       <label className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">Quyền lợi & Phúc lợi</label>
-                      <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:border-primary transition-all shadow-sm">
-                        <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_bold</span></button>
-                          <button type="button" className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors text-slate-600"><span className="material-symbols-outlined text-[18px] block">format_list_bulleted</span></button>
-                        </div>
-                        <textarea 
-                          name="benefits"
-                          value={formData.benefits}
-                          onChange={handleInputChange}
-                          className="w-full px-5 py-4 border-none focus:ring-0 resize-y outline-none text-[15px] leading-relaxed font-medium" placeholder="Chế độ bảo hiểm, thưởng, nghỉ phép..." rows="4"></textarea>
-                      </div>
+                      <textarea 
+                        name="benefits"
+                        value={formData.benefits}
+                        onChange={handleInputChange}
+                        className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-[15px] leading-relaxed font-medium" placeholder="Chế độ bảo hiểm, thưởng, nghỉ phép..." rows="4"></textarea>
                     </div>
                   </div>
                 </section>
@@ -319,9 +331,8 @@ const RecruiterPostJob = () => {
                         value={skillInput}
                         onChange={(e) => setSkillInput(e.target.value)}
                         onKeyDown={handleAddSkill}
-                        className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] font-medium shadow-sm" placeholder="Tìm kiếm và thêm kỹ năng (VD: Figma, Next.js...)" type="text" 
+                        className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400 text-[15px] font-medium shadow-sm" placeholder="Tìm kiếm và thêm kỹ năng..." type="text" 
                       />
-                      <p className="mt-2 text-[11px] text-slate-400 italic">Nhấn Enter để thêm kỹ năng</p>
                     </div>
                   </div>
                 </section>
@@ -355,25 +366,22 @@ const RecruiterPostJob = () => {
                     </div>
                   </div>
                 </section>
-                
               </div>
             </div>
 
-            {/* Footer Actions */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-end pb-12 border-t border-slate-200 pt-8">
               <button 
                 type="button"
-                onClick={() => handleSubmit(null, 'draft')}
-                disabled={loading}
-                className="w-full sm:w-auto px-8 py-3.5 text-sm font-bold border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors shadow-sm text-slate-700 disabled:opacity-50">
-                Lưu bản nháp
+                onClick={() => navigate(`/recruiter/jobs/${id}`)}
+                className="w-full sm:w-auto px-8 py-3.5 text-sm font-bold border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors shadow-sm text-slate-700">
+                Hủy bỏ
               </button>
               <button 
                 type="submit"
-                disabled={loading}
+                disabled={submitting}
                 className="w-full sm:w-auto px-10 py-3.5 text-sm font-bold bg-primary text-white hover:opacity-90 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50">
-                <span className="material-symbols-outlined text-[20px]">{loading ? 'sync' : 'send'}</span>
-                {loading ? 'Đang xử lý...' : 'Đăng tin ngay'}
+                <span className="material-symbols-outlined text-[20px]">{submitting ? 'sync' : 'save'}</span>
+                {submitting ? 'Đang lưu...' : 'Lưu tất cả thay đổi'}
               </button>
             </div>
           </form>
@@ -383,4 +391,4 @@ const RecruiterPostJob = () => {
   );
 };
 
-export default RecruiterPostJob;
+export default RecruiterEditJob;

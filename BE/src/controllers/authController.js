@@ -125,9 +125,11 @@ export const authController = {
                 return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
             }
 
-            // Check if user is banned
-            if (user.status === 'banned') {
-                return res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa.' });
+            // Check if user is active
+            if (user.status !== 'active') {
+                const statusMsg = user.status === 'banned' ? 'banned' : 'inactive';
+                const vnMsg = user.status === 'banned' ? 'bị khóa' : 'đã ngừng hoạt động';
+                return res.status(403).json({ message: `Tài khoản của bạn ${vnMsg}.` });
             }
 
             // Compare password

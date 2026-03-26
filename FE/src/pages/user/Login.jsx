@@ -30,7 +30,9 @@ const LoginPage = () => {
         setUser(response.user);
         
         // Redirect based on role
-        if (response.user.role === 'recruiter') {
+        if (response.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (response.user.role === 'recruiter') {
           navigate('/recruiter/dashboard');
         } else {
           navigate('/');

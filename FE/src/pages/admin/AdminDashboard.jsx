@@ -1,54 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import AdminSidebar from '@/components/common/AdminSidebar';
 
 const AdminDashboard = () => {
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen flex font-display antialiased">
       
-      {/* Sidebar Navigation */}
-      <aside className="w-64 border-r border-slate-200 bg-white flex flex-col fixed h-full z-50">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-            <span className="material-symbols-outlined text-white text-xl">mindfulness</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight uppercase">HireMind</span>
-        </div>
-        
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          <Link to="/admin/dashboard" className="flex items-center gap-3 px-3 py-2.5 text-[14px] font-bold rounded-xl bg-slate-100 text-primary transition-colors">
-            <span className="material-symbols-outlined text-[20px]">dashboard</span>
-            Dashboard
-          </Link>
-          <Link to="/admin/candidates" className="flex items-center gap-3 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">group</span>
-            Quản lý Ứng viên
-          </Link>
-          <Link to="/admin/recruiters" className="flex items-center gap-3 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">badge</span>
-            Quản lý Nhà tuyển dụng
-          </Link>
-          <Link to="/admin/jobs" className="flex items-center gap-3 px-3 py-2.5 text-[14px] font-semibold rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-            <span className="material-symbols-outlined text-[20px]">work</span>
-            Quản lý tin tuyển dụng
-          </Link>
-          
-        </nav>
-        
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold overflow-hidden shadow-sm shrink-0">
-              AD
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-slate-900 truncate">Quản trị viên</p>
-              <p className="text-[11px] font-semibold text-slate-500 truncate">admin@hiremind.vn</p>
-            </div>
-            <Link to="/login" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex-shrink-0" title="Đăng xuất">
-              <span className="material-symbols-outlined text-[20px]">logout</span>
-            </Link>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar />
 
       {/* Main Content Area */}
       <main className="ml-64 flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
