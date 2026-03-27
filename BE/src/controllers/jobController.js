@@ -1,4 +1,8 @@
 import JobModel from '../models/jobModel.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
 class JobController {
     static async createJob(req, res) {
@@ -98,6 +102,118 @@ class JobController {
             res.status(200).json({ message: 'Job deleted successfully' });
         } catch (error) {
             console.error('Delete job error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
+    static async generateInterviewQuestions(req, res) {
+        const { id } = req.params;
+        const { skills } = req.body;
+        const recruiter_id = req.user.id;
+        try {
+            const job = await JobModel.findById(id);
+            if (!job || job.recruiter_id !== recruiter_id) {
+                return res.status(404).json({ message: 'Job not found or unauthorized' });
+            }
+
+            const aiResponse = await fetch(`${process.env.AI_SERVICE_URL}/api/v1/interview/generate-questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    job_id: id,
+                    job_title: job.title,
+                    job_description: job.description,
+                    requirements: job.requirements,
+                    skills: skills || []
+                })
+            });
+
+            if (!aiResponse.ok) {
+                const errorData = await aiResponse.json();
+                console.error('AI Service Error:', errorData);
+                throw new Error('AI Service error');
+            }
+            const data = await aiResponse.json();
+
+            res.status(200).json({
+                message: 'Questions generated successfully',
+                questions: data.questions
+            });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Error generating questions' });
+        }
+    }
+
+    static async saveInterviewQuestions(req, res) {
+        const { id } = req.params;
+        const { questions } = req.body; 
+        const recruiter_id = req.user.id;
+        try {
+            const job = await JobModel.findById(id);
+            if (!job || job.recruiter_id !== recruiter_id) {
+                return res.status(401).json({ message: 'Unauthorized' });
+            }
+
+            // Map evaluation_criteria to suggested_answer for DB
+            const mapped = {};
+            for (const cat of Object.keys(questions)) {
+                mapped[cat] = questions[cat].map(q => ({
+                    question: q.question,
+                    suggested_answer: q.evaluation_criteria || q.suggested_answer,
+                    tags: q.tags
+                }));
+            }
+
+            await JobModel.saveInterviewQuestions(id, mapped);
+            res.status(200).json({ message: 'Questions saved to bank successfully' });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Error saving questions' });
+        }
+    }
+
+    static async deleteInterviewQuestion(req, res) {
+        const { questionId } = req.params;
+        // Simple delete for now
+        try {
+            await JobModel.deleteInterviewQuestionById(questionId);
+            res.status(200).json({ message: 'Question deleted successfully' });
+        } catch (error) {
+            res.status(500).json({ message: 'Error deleting question' });
+        }
+    }
+
+    static async deleteAllInterviewQuestions(req, res) {
+        const { id } = req.params;
+        const recruiter_id = req.user.id;
+        try {
+            const job = await JobModel.findById(id);
+            if (!job || job.recruiter_id !== recruiter_id) {
+                return res.status(401).json({ message: 'Unauthorized' });
+            }
+            await JobModel.deleteInterviewQuestionsByJobId(id);
+            res.status(200).json({ message: 'All questions deleted from bank' });
+        } catch (error) {
+            res.status(500).json({ message: 'Error deleting questions' });
+        }
+    }
+
+    static async getJobInterviewQuestions(req, res) {
+        try {
+            const { id } = req.params;
+            const recruiter_id = req.user.id;
+
+            // Check if job exists and belongs to recruiter
+            const job = await JobModel.findById(id);
+            if (!job || job.recruiter_id !== recruiter_id) {
+                return res.status(404).json({ message: 'Job not found or unauthorized' });
+            }
+
+            const questions = await JobModel.getInterviewQuestions(id);
+            res.status(200).json(questions);
+        } catch (error) {
+            console.error('Get interview questions error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }

@@ -134,8 +134,10 @@ CREATE TABLE job_interview_questions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     job_id INT NOT NULL,
     
+    category VARCHAR(50), -- Added: Technical, Soft Skills, etc.
     question TEXT NOT NULL,
     suggested_answer TEXT,
+    tags JSON, -- Added tags
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     

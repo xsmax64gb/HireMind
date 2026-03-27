@@ -26,6 +26,7 @@ const RecruiterJobDetail = () => {
     fetchJob();
   }, [id]);
 
+
   const handleLogout = () => {
     removeToken();
     removeUser();
@@ -71,6 +72,15 @@ const RecruiterJobDetail = () => {
               <div>
                 <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Chi tiết tin tuyển dụng</h1>
                 <p className="text-slate-500 text-[15px]">Xem thông tin chi tiết và danh sách ứng viên của vị trí này.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link 
+                  to="/recruiter/interviews"
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-[14px] bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[20px]">quiz</span>
+                  Quản lý bộ câu hỏi
+                </Link>
               </div>
             </div>
             {/* Main Info Card */}
@@ -147,6 +157,7 @@ const RecruiterJobDetail = () => {
                     {job.benefits || 'Chưa cập nhật'}
                   </div>
                 </section>
+
               </div>
 
               <div className="space-y-8 text-white">

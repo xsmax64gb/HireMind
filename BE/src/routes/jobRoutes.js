@@ -33,4 +33,35 @@ router.delete('/:id',
     JobController.deleteJob
 );
 
+// Interview Questions Generation
+router.post('/:id/generate-questions', 
+    authMiddleware.verifyToken, 
+    authMiddleware.isRecruiter, 
+    JobController.generateInterviewQuestions
+);
+
+router.get('/:id/interview-questions', 
+    authMiddleware.verifyToken, 
+    authMiddleware.isRecruiter, 
+    JobController.getJobInterviewQuestions
+);
+
+router.post('/:id/interview-questions/save',
+    authMiddleware.verifyToken,
+    authMiddleware.isRecruiter,
+    JobController.saveInterviewQuestions
+);
+
+router.delete('/:id/interview-questions',
+    authMiddleware.verifyToken,
+    authMiddleware.isRecruiter,
+    JobController.deleteAllInterviewQuestions
+);
+
+router.delete('/interview-questions/:questionId',
+    authMiddleware.verifyToken,
+    authMiddleware.isRecruiter,
+    JobController.deleteInterviewQuestion
+);
+
 export default router;

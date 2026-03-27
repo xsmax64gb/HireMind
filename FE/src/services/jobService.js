@@ -23,6 +23,26 @@ const jobService = {
 
   deleteJob: async (id) => {
     return await apiClient.delete(`/jobs/${id}`);
+  },
+
+  generateInterviewQuestions: async (id, skills = []) => {
+    return await apiClient.post(`/jobs/${id}/generate-questions`, { skills });
+  },
+
+  getInterviewQuestions: async (id) => {
+    return await apiClient.get(`/jobs/${id}/interview-questions`);
+  },
+
+  saveInterviewQuestions: async (id, questions) => {
+    return await apiClient.post(`/jobs/${id}/interview-questions/save`, { questions });
+  },
+
+  deleteInterviewQuestion: async (questionId) => {
+    return await apiClient.delete(`/jobs/interview-questions/${questionId}`);
+  },
+
+  deleteAllInterviewQuestions: async (jobId) => {
+    return await apiClient.delete(`/jobs/${jobId}/interview-questions`);
   }
 };
 

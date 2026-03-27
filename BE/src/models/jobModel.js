@@ -220,12 +220,66 @@ class JobModel {
         }
     }
 
-    static async delete(id, recruiterId) {
-        const [result] = await pool.execute(
-            'DELETE FROM jobs WHERE id = ? AND recruiter_id = ?',
-            [id, recruiterId]
+    static async saveInterviewQuestions(jobId, categorizedQuestions) {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            // Insert new questions - categorizedQuestions is an object like { Technical: [...], Soft Skills: [...] }
+            for (const category of Object.keys(categorizedQuestions)) {
+                const questions = categorizedQuestions[category];
+                if (Array.isArray(questions)) {
+                    for (const q of questions) {
+                        // Check for duplicates
+                        const [existing] = await connection.execute(
+                            'SELECT id FROM job_interview_questions WHERE job_id = ? AND question = ?',
+                            [jobId, q.question]
+                        );
+
+                        if (existing.length === 0) {
+                            await connection.execute(
+                                `INSERT INTO job_interview_questions (job_id, category, question, suggested_answer, tags)
+                                VALUES (?, ?, ?, ?, ?)`,
+                                [jobId, category, q.question, q.suggested_answer, JSON.stringify(q.tags || [])]
+                            );
+                        }
+                    }
+                }
+            }
+
+            await connection.commit();
+            return true;
+        } catch (error) {
+            if (connection) await connection.rollback();
+            throw error;
+        } finally {
+            if (connection) connection.release();
+        }
+    }
+
+    static async deleteInterviewQuestionsByJobId(jobId) {
+        await pool.execute(
+            'DELETE FROM job_interview_questions WHERE job_id = ?',
+            [jobId]
         );
-        return result.affectedRows > 0;
+        return true;
+    }
+
+    static async deleteInterviewQuestionById(id) {
+        await pool.execute(
+            'DELETE FROM job_interview_questions WHERE id = ?',
+            [id]
+        );
+        return true;
+    }
+
+    static async getInterviewQuestions(jobId) {
+        const [rows] = await pool.execute(
+            'SELECT * FROM job_interview_questions WHERE job_id = ? ORDER BY id ASC',
+            [jobId]
+        );
+        return rows;
     }
 }
 
