@@ -48,14 +48,25 @@ const LoginPage = () => {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 bg-white text-black antialiased">
+    <main className="relative min-h-screen flex items-center justify-center p-4 bg-white text-black antialiased">
+      {/* Back to Home Button */}
+      <Link 
+        to="/" 
+        className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-black transition-all group"
+      >
+        <div className="h-8 w-8 rounded-full border border-zinc-200 flex items-center justify-center group-hover:border-black group-hover:bg-zinc-50 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </div>
+        <span className="hidden sm:inline">Quay lại trang chủ</span>
+      </Link>
+
       <div className="w-full max-w-md space-y-8">
         {/* Header Section */}
         <header className="text-center space-y-2">
           <div className="flex justify-center mb-6">
-            <div className="h-10 w-10 bg-black rounded-lg flex items-center justify-center">
+            <Link to="/" className="h-10 w-10 bg-black rounded-lg flex items-center justify-center hover:scale-110 transition-transform">
               <span className="text-white font-bold text-xl">H</span>
-            </div>
+            </Link>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Chào mừng trở lại</h1>
           <p className="text-sm text-zinc-500">Nhập thông tin của bạn để truy cập tài khoản HireMind</p>
