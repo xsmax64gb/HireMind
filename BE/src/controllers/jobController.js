@@ -17,6 +17,29 @@ class JobController {
 
             const jobId = await JobModel.create(jobData);
             
+            // Generate embedding and save to Chroma
+            try {
+                const aiResponse = await fetch(`${AI_SERVICE_URL}/api/v1/job/embed`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        job_id: jobId.toString(),
+                        job_title: jobData.title,
+                        job_description: jobData.description,
+                        requirements: jobData.requirements || '',
+                        recruiter_id: recruiter_id.toString()
+                    })
+                });
+
+                if (!aiResponse.ok) {
+                    console.error('Failed to embed job to Chroma');
+                } else {
+                    await JobModel.updateEmbeddingStatus(jobId, jobId.toString());
+                }
+            } catch (aiError) {
+                console.error('Error connecting to AI Service for embedding:', aiError);
+            }
+
             res.status(201).json({
                 message: 'Job posted successfully',
                 jobId
@@ -97,6 +120,19 @@ class JobController {
             
             if (!deleted) {
                 return res.status(404).json({ message: 'Job not found or unauthorized' });
+            }
+
+            // Sync with AI Service (delete from Chroma)
+            try {
+                const aiResponse = await fetch(`${AI_SERVICE_URL}/api/v1/job/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!aiResponse.ok) {
+                    console.error(`AI Service Delete Error for job ${id}:`, await aiResponse.text());
+                }
+            } catch (aiError) {
+                console.error(`AI Service Connection Error for job ${id} deletion:`, aiError);
             }
 
             res.status(200).json({ message: 'Job deleted successfully' });

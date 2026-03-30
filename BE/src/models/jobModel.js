@@ -281,6 +281,61 @@ class JobModel {
         );
         return rows;
     }
+
+    static async updateEmbeddingStatus(jobId, chromaId) {
+        await pool.execute(
+            'UPDATE jobs SET is_embedded = 1, chroma_id = ? WHERE id = ?',
+            [chromaId, jobId]
+        );
+        return true;
+    }
+
+    static async delete(id, recruiter_id) {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            // 1. Delete associated interview questions
+            await connection.execute(
+                'DELETE FROM job_interview_questions WHERE job_id = ?',
+                [id]
+            );
+
+            // 2. Delete associated job skills
+            await connection.execute(
+                'DELETE FROM job_skills WHERE job_id = ?',
+                [id]
+            );
+
+            // 3. Delete applications (if any) or handle them
+            // Note: If you don't want to lose application history, you might want 
+            // to restrict delete or soft-delete. For now, we'll delete them to maintain DB integrity.
+            await connection.execute(
+                'DELETE FROM applications WHERE job_id = ?',
+                [id]
+            );
+
+            // 4. Finally delete the job
+            const [result] = await connection.execute(
+                'DELETE FROM jobs WHERE id = ? AND recruiter_id = ?',
+                [id, recruiter_id]
+            );
+
+            if (result.affectedRows === 0) {
+                await connection.rollback();
+                return false;
+            }
+
+            await connection.commit();
+            return true;
+        } catch (error) {
+            if (connection) await connection.rollback();
+            throw error;
+        } finally {
+            if (connection) connection.release();
+        }
+    }
 }
 
 export default JobModel;

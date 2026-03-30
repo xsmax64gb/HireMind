@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import jobService from '@/services/jobService';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import apiClient from '@/services/apiClient';
 
 const JobsPage = () => {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -23,6 +27,35 @@ const JobsPage = () => {
     };
     fetchJobs();
   }, []);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+       alert('Chỉ hỗ trợ tệp PDF');
+       return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploading(true);
+      setUploadSuccess(false);
+      await apiClient.post('/cvs/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setUploadSuccess(true);
+      alert('Tải lên CV thành công! Bạn có thể quản lý CV tại trang hồ sơ.');
+    } catch (error) {
+      console.error('Error uploading CV:', error);
+      alert(error.message || 'Lỗi khi tải lên CV');
+    } finally {
+      setUploading(false);
+      e.target.value = null;
+    }
+  };
 
   const formatSalary = (min, max, currency) => {
     if (!min && !max) return 'Thỏa thuận';
@@ -56,6 +89,52 @@ const JobsPage = () => {
           <p className="mx-auto mb-10 max-w-3xl text-lg text-slate-600">
             Gia nhập đội ngũ những người tiên phong định hình tương lai của việc học ngôn ngữ bằng AI. Hãy để AI của chúng tôi kết nối bạn với vị trí hoàn hảo dựa trên chuyên môn của bạn.
           </p>
+
+          {/* CV Upload Section */}
+          <div className="max-w-xl mx-auto mb-10">
+            {uploadSuccess ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-8 flex flex-col items-center animate-in fade-in zoom-in duration-300">
+                <div className="size-14 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-4 shadow-sm">
+                  <span className="material-symbols-outlined text-3xl">check_circle</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Tải lên CV thành công!</h3>
+                <p className="text-sm text-slate-500 mb-6">Hệ thống AI đang phân tích CV của bạn để tìm kiếm những công việc phù hợp nhất.</p>
+                <div className="flex gap-3">
+                  <Link to="/profile/cv" className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Quản lý CV</Link>
+                  <button onClick={() => setUploadSuccess(false)} className="px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-sm">Tải lên CV khác</button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm flex items-center hover:shadow-md transition-shadow">
+                <div className="size-14 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shrink-0 ml-1">
+                  <span className="material-symbols-outlined text-2xl">upload_file</span>
+                </div>
+                <div className="flex-1 px-4 text-left">
+                   <h4 className="text-[15px] font-bold text-slate-900 mb-0.5">Tải lên CV của bạn</h4>
+                   <p className="text-[12px] text-slate-400 font-medium">Định dạng: PDF (Tối đa 5MB)</p>
+                </div>
+                <div className="relative overflow-hidden group">
+                   <input 
+                    type="file" 
+                    accept="application/pdf"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                   />
+                   <div className={`px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${uploading ? 'bg-slate-100 text-slate-400' : 'bg-primary text-white group-hover:bg-slate-800'}`}>
+                      {uploading ? (
+                        <>										  
+                          <div className="size-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin"></div>
+                          Đang tải...
+                        </>
+                      ) : (
+                        <>Tải lên CV</>
+                      )}
+                   </div>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Job List Section */}
