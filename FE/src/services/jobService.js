@@ -43,6 +43,14 @@ const jobService = {
 
   deleteAllInterviewQuestions: async (jobId) => {
     return await apiClient.delete(`/jobs/${jobId}/interview-questions`);
+  },
+  
+  getJobCandidates: async (jobId) => {
+    return await apiClient.get(`/jobs/${jobId}/candidates`);
+  },
+
+  updateApplicationStatus: async (jobId, applicationId, status) => {
+    return await apiClient.put(`/jobs/${jobId}/applications/${applicationId}/status`, { status });
   }
 };
 

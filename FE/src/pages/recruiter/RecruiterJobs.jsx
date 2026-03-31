@@ -151,7 +151,7 @@ const RecruiterJobs = () => {
                           </td>
                           <td className="px-8 py-6 text-right">
                             <div className="flex items-center justify-end gap-2.5">
-                              <Link to={`/recruiter/jobs/${job.id}/candidates`} className="flex h-9 px-4 items-center text-[13px] font-bold bg-slate-900 text-white rounded-lg hover:bg-primary hover:shadow-md transition-all shadow-sm">Xem ứng viên</Link>
+                              <Link to={`/recruiter/jobs/${job.id}/candidates`} className="flex h-9 px-4 items-center text-[13px] font-bold bg-slate-900 text-white rounded-lg hover:bg-primary hover:shadow-md transition-all shadow-sm whitespace-nowrap">Xem ứng viên</Link>
                               <Link to={`/recruiter/jobs/${job.id}`} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-primary hover:border-primary/50 hover:bg-slate-50 transition-colors" title="Xem chi tiết">
                                 <span className="material-symbols-outlined text-[18px]">visibility</span>
                               </Link>

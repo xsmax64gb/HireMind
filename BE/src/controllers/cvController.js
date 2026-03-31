@@ -1,4 +1,5 @@
 import CVModel from '../models/cvModel.js';
+import JobModel from '../models/jobModel.js';
 import cloudinary from '../config/cloudinary.js';
 import streamifier from 'streamifier';
 import { PDFParse } from 'pdf-parse';
@@ -108,31 +109,67 @@ export const deleteCV = async (req, res) => {
             return res.status(403).json({ message: 'Không có quyền xóa CV này' });
         }
 
-        // Delete from Cloudinary
-        if (cv.cloudinary_url) {
-            // URL format: .../raw/upload/v12345/cv_uploads/original_name_uuid.pdf
-            const parts = cv.cloudinary_url.split('/');
-            const filename = parts[parts.length - 1];
-            const publicId = `cv_uploads/${filename}`; 
-            
-            await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
-        }
-
-        // Delete from ChromaDB
-        if (cv.chroma_id) {
-            try {
-                await axios.delete(`${process.env.AI_SERVICE_URL}/api/v1/cv/${cv.chroma_id}`);
-            } catch (err) {
-                console.error('Lỗi xóa CV từ ChromaDB:', err.message);
-            }
-        }
-
-        // Delete from DB
+        // CHUYỂN SANG SOFT DELETE (XÓA MỀM)
+        // Không xóa file trên Cloudinary và ChromaDB để bảo toàn dữ liệu cho các đơn ứng tuyển cũ
         await CVModel.delete(id);
 
         res.status(200).json({ message: 'Xóa CV thành công' });
     } catch (error) {
         console.error('Lỗi xóa CV:', error);
         res.status(500).json({ message: 'Lỗi server' });
+    }
+};
+
+export const analyzeCV = async (req, res) => {
+    try {
+        const { id: cvId } = req.params;
+        const { jobId } = req.body;
+        const userId = req.user.id;
+
+        if (!jobId) {
+            return res.status(400).json({ message: 'Missing jobId' });
+        }
+
+        const cv = await CVModel.getById(cvId);
+        if (!cv || cv.user_id !== userId) {
+            return res.status(404).json({ message: 'CV không tồn tại hoặc không có quyền truy cập' });
+        }
+
+        const job = await JobModel.findById(jobId);
+        if (!job) {
+            return res.status(404).json({ message: 'Công việc không tồn tại' });
+        }
+
+        // 1. Check Cache first
+        const cache = await CVModel.getAnalysisCache(cvId, jobId);
+        if (cache) {
+            return res.status(200).json(cache);
+        }
+
+        // 2. Call AI Service if no cache
+        const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/api/v1/cv/analyze`, {
+            cv_text: cv.extracted_text || '',
+            job_title: job.title || '',
+            job_description: job.description || '',
+            requirements: job.requirements || ''
+        });
+
+        const result = aiResponse.data;
+
+        // 3. Save to cache for future use
+        await CVModel.saveAnalysisCache({
+            cv_id: cvId,
+            job_id: jobId,
+            user_id: userId,
+            match_score: result.match_score,
+            strengths: result.strengths,
+            improvements: result.improvements,
+            summary: result.summary
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Lỗi phân tích CV:', error?.response?.data || error);
+        res.status(500).json({ message: 'Lỗi server khi phân tích CV' });
     }
 };

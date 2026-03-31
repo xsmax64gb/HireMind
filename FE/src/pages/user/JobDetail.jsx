@@ -1,12 +1,163 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import jobService from '@/services/jobService';
+import apiClient from '@/services/apiClient';
+import { getUser } from '@/utils/authUtils';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
 const JobDetail = () => {
   const { id } = useParams();
-  const [isAnalyzed, setIsAnalyzed] = React.useState(false);
-  const [selectedCV, setSelectedCV] = React.useState("");
+  const user = getUser();
+  const [isAnalyzed, setIsAnalyzed] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedCV, setSelectedCV] = useState("");
+  const [cvs, setCvs] = useState([]);
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [aiResult, setAiResult] = useState(null);
+  
+  // Apply Modal state
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [applySelectedCV, setApplySelectedCV] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
+
+  const handleApply = async () => {
+    if (!user) {
+      alert("Vui lòng đăng nhập để ứng tuyển.");
+      return;
+    }
+    if (!applySelectedCV) return;
+    try {
+      setIsApplying(true);
+      
+      const payload = {
+        cvId: applySelectedCV
+      };
+
+      // Tối ưu: Tận dụng lại kết quả AI nếu ứng viên ứng tuyển bằng chính CV đang xem phân tích
+      if (aiResult && selectedCV === applySelectedCV) {
+        payload.match_score = aiResult.match_score;
+        payload.missing_skills = aiResult.improvements;
+        payload.ai_feedback = aiResult.summary;
+      }
+
+      await apiClient.post(`/jobs/${job.id}/apply`, payload);
+      alert('Ứng tuyển thành công! Nhà tuyển dụng sẽ xem xét hồ sơ của bạn.');
+      setIsApplyModalOpen(false);
+    } catch (error) {
+      console.error('Error applying:', error);
+      alert(error?.message || error?.response?.data?.message || 'Có lỗi xảy ra khi ứng tuyển. Vui lòng thử lại.');
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedCV || !job) return;
+    try {
+      setIsAnalyzing(true);
+      const data = await apiClient.post(`/cvs/${selectedCV}/analyze`, {
+        jobId: job.id
+      });
+      setAiResult(data);
+      setIsAnalyzed(true);
+    } catch (error) {
+      console.error('Error analyzing CV:', error);
+      alert('Có lỗi xảy ra khi phân tích CV. Vui lòng thử lại sau.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const data = await jobService.getJobById(id);
+        setJob(data);
+      } catch (error) {
+        console.error('Error fetching job details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchCVs = async () => {
+      try {
+        const data = await apiClient.get('/cvs');
+        setCvs(data || []);
+      } catch (error) {
+        console.error('Error fetching CVs:', error);
+      }
+    };
+
+    fetchJob();
+    if (user) {
+      fetchCVs();
+    }
+  }, [id]);
+
+  const formatSalary = (min, max, currency) => {
+    if (!min && !max) return 'Thỏa thuận';
+    if (min && max) return `${min.toLocaleString()} - ${max.toLocaleString()} ${currency}`;
+    if (min) return `Từ ${min.toLocaleString()} ${currency}`;
+    if (max) return `Đến ${max.toLocaleString()} ${currency}`;
+    return 'Thỏa thuận';
+  };
+
+  const getEmploymentTypeLabel = (type) => {
+    const types = {
+      'fulltime': 'Toàn thời gian',
+      'parttime': 'Bán thời gian',
+      'intern': 'Thực tập',
+      'freelance': 'Freelance'
+    };
+    return types[type] || type;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-background-light text-slate-900 min-h-screen flex flex-col font-display antialiased">
+        <Navbar />
+        <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="size-8 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
+            <p className="text-slate-500 font-medium">Đang tải thông tin công việc...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="bg-background-light text-slate-900 min-h-screen flex flex-col font-display antialiased">
+        <Navbar />
+        <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <span className="material-symbols-outlined text-6xl text-slate-300">work_off</span>
+            <h2 className="text-2xl font-bold text-slate-900">Không tìm thấy công việc</h2>
+            <p className="text-slate-500">Công việc này có thể đã bị xóa hoặc không còn tồn tại.</p>
+            <Link to="/jobs" className="inline-block mt-4 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
+              Quay lại danh sách tuyển dụng
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background-light text-slate-900 min-h-screen flex flex-col font-display antialiased">
@@ -19,7 +170,7 @@ const JobDetail = () => {
             <span className="material-symbols-outlined text-[10px]">chevron_right</span>
             <Link className="hover:text-primary" to="/jobs">Tuyển dụng</Link>
             <span className="material-symbols-outlined text-[10px]">chevron_right</span>
-            <span className="text-primary font-medium">Senior Frontend Developer</span>
+            <span className="text-primary font-medium">{job.title}</span>
           </nav>
         </div>
       </div>
@@ -27,23 +178,25 @@ const JobDetail = () => {
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-10 border-b border-slate-200">
-          <div className="flex gap-6 items-start">
-            <div className="w-20 h-20 bg-white rounded-xl border border-slate-200 flex items-center justify-center p-2 shadow-sm">
-              <img alt="Company Logo" className="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCn819rpxX8SqFTrXSP1qHg7DoQcHvTNV9Ey3EDtTZfEDxjmCOq4U28rcmaNAYkVTCSwraTGaUNVOC9GpebtGhhVJuyktMXzD3yH4Mg3ECV6FJPF2OCdK4p-FdbwXBbRv825iVHzYBAla25dwsqMOosbSBrzHjDhkAoOgUV4HldEMoRrK2TX8GPk1fzw18_saebUhA523sRAObDNjA-BrNJTBr92fQg89JMu8c2AGnhsyBG7jKbexB44258YYSMToBd9ACUA-GBG2I"/>
+          <div className="flex gap-6 items-start flex-1 min-w-0">
+            <div className="w-20 h-20 bg-white rounded-xl border border-slate-200 flex items-center justify-center p-2 shadow-sm shrink-0">
+              <span className="material-symbols-outlined text-4xl text-slate-300">business</span>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight mb-2">Senior Frontend Developer</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 break-words">{job.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-slate-600">
-                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">business</span> HireMind Recruitment</span>
-                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">calendar_today</span> Đăng tải 2 ngày trước</span>
+                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">business</span> {job.company_name || 'HireMind'}</span>
+                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">calendar_today</span> Đăng ngày {formatDate(job.created_at)}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button className="px-6 py-3 border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-all flex items-center gap-2">
+          <div className="flex gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
+            <button className="flex-1 md:flex-none px-6 py-3 border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
               <span className="material-symbols-outlined text-lg">bookmark</span> Lưu tin
             </button>
-            <button className="px-8 py-3 bg-primary text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/10">
+            <button 
+              onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
+              className="flex-1 md:flex-none px-8 py-3 bg-primary text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/10 whitespace-nowrap">
               Ứng tuyển ngay
             </button>
           </div>
@@ -76,8 +229,11 @@ const JobDetail = () => {
                           onChange={(e) => setSelectedCV(e.target.value)}
                         >
                           <option value="" disabled>-- Chọn CV lưu trong tài khoản --</option>
-                          <option value="cv_1">CV_Frontend_Developer_Senior.pdf</option>
-                          <option value="cv_2">CV_Mobile_App_Dev_2024.pdf</option>
+                          {cvs.length > 0 ? cvs.map(cv => (
+                            <option key={cv.id} value={cv.id}>{cv.file_name}</option>
+                          )) : (
+                            <option value="" disabled>Chưa có CV nào (Vui lòng tải lên ở mục Quản lý CV)</option>
+                          )}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                           <span className="material-symbols-outlined">expand_more</span>
@@ -86,11 +242,16 @@ const JobDetail = () => {
                     </div>
                     
                     <button 
-                      className={`group mt-2 w-full py-3.5 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 ${selectedCV ? 'bg-slate-900 text-white hover:bg-primary hover:shadow-lg hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                      disabled={!selectedCV}
-                      onClick={() => setIsAnalyzed(true)}
+                      className={`group mt-2 w-full py-3.5 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 ${selectedCV && !isAnalyzing ? 'bg-slate-900 text-white hover:bg-primary hover:shadow-lg hover:-translate-y-0.5' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                      disabled={!selectedCV || isAnalyzing}
+                      onClick={handleAnalyze}
                     >
-                      <span className="material-symbols-outlined text-lg group-hover:animate-spin">magic_button</span> Phân tích ngay
+                      {isAnalyzing ? (
+                        <div className="size-5 border-2 border-slate-400 border-t-slate-600 rounded-full animate-spin"></div>
+                      ) : (
+                        <span className="material-symbols-outlined text-lg group-hover:animate-spin">magic_button</span>
+                      )}
+                      {isAnalyzing ? 'Đang phân tích...' : 'Phân tích ngay'}
                     </button>
                   </div>
                 </div>
@@ -107,7 +268,7 @@ const JobDetail = () => {
                       <span className="text-xs font-bold uppercase tracking-widest">Kết quả phân tích từ AI</span>
                     </div>
                     <button 
-                      onClick={() => { setIsAnalyzed(false); setSelectedCV(''); }}
+                      onClick={() => { setIsAnalyzed(false); setAiResult(null); }}
                       className="text-xs flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
                     >
                       <span className="material-symbols-outlined text-sm">refresh</span> Phân tích lại
@@ -118,23 +279,24 @@ const JobDetail = () => {
                     <div className="relative flex items-center justify-center">
                       <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 128 128">
                         <circle className="text-white/10" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeWidth="8"></circle>
-                        <circle className="text-white" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeDasharray="364.4" strokeDashoffset="36.44" strokeWidth="8"></circle>
+                        <circle className="text-white" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeDasharray={`${aiResult?.match_score ? (aiResult.match_score * 3.644) : 0} 364.4`} strokeDashoffset="0" strokeWidth="8"></circle>
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-bold">90%</span>
+                        <span className="text-3xl font-bold">{aiResult?.match_score || 0}%</span>
                         <span className="text-[10px] uppercase font-medium opacity-70">Độ phù hợp</span>
                       </div>
                     </div>
                     <div className="flex-1 space-y-4">
-                      <h3 className="text-xl font-bold">Bạn rất tiềm năng cho vị trí này!</h3>
+                      <h3 className="text-xl font-bold">{aiResult?.summary || 'Kết quả phân tích AI'}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
                           <p className="text-xs font-bold text-white/60 mb-2 flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">trending_up</span> ĐIỂM MẠNH
                           </p>
                           <ul className="text-sm space-y-1.5 opacity-90">
-                            <li>• 5+ năm kinh nghiệm React</li>
-                            <li>• Kỹ năng tối ưu hóa performance</li>
+                            {aiResult?.strengths?.map((item, index) => (
+                                <li key={index}>• {item}</li>
+                            ))}
                           </ul>
                         </div>
                         <div className="bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
@@ -142,8 +304,9 @@ const JobDetail = () => {
                             <span className="material-symbols-outlined text-sm">edit_note</span> GỢI Ý CẢI THIỆN
                           </p>
                           <ul className="text-sm space-y-1.5 opacity-90">
-                            <li>• Thêm chứng chỉ Next.js</li>
-                            <li>• Cập nhật các dự án TypeScript</li>
+                            {aiResult?.improvements?.map((item, index) => (
+                                <li key={index}>• {item}</li>
+                            ))}
                           </ul>
                         </div>
                       </div>
@@ -162,65 +325,32 @@ const JobDetail = () => {
             {/* Detailed Job Description */}
             <section className="space-y-6">
               <h2 className="text-2xl font-bold border-l-4 border-primary pl-4">Mô tả công việc</h2>
-              <div className="text-slate-700 leading-relaxed space-y-4">
-                <p>Chúng tôi đang tìm kiếm một Senior Frontend Developer tài năng để gia nhập đội ngũ phát triển sản phẩm cốt lõi. Bạn sẽ đóng vai trò quan trọng trong việc xây dựng giao diện người dùng hiện đại, hiệu suất cao và dễ mở rộng.</p>
-                <ul className="list-disc pl-5 space-y-2">
-                  <li>Thiết kế và xây dựng các component UI phức tạp sử dụng React và Tailwind CSS.</li>
-                  <li>Tối ưu hóa hiệu năng ứng dụng (Web Vitals, Code Splitting, Caching).</li>
-                  <li>Hợp tác chặt chẽ với đội ngũ Design để chuyển đổi Figma sang code hoàn hảo.</li>
-                  <li>Hướng dẫn và review code cho các thành viên junior trong team.</li>
-                </ul>
+              <div className="text-slate-700 leading-relaxed space-y-4 whitespace-pre-wrap">
+                {job.description || 'Chưa có mô tả chi tiết.'}
               </div>
             </section>
 
             {/* Requirements */}
-            <section className="space-y-6">
-              <h2 className="text-2xl font-bold border-l-4 border-primary pl-4">Yêu cầu ứng viên</h2>
-              <div className="text-slate-700 leading-relaxed space-y-4">
-                <ul className="list-disc pl-5 space-y-2">
-                  <li>Ít nhất 5 năm kinh nghiệm làm việc chuyên sâu với Frontend.</li>
-                  <li>Thành thạo ReactJS, Next.js và TypeScript.</li>
-                  <li>Hiểu rõ về State Management (Zustand, Redux hoặc React Query).</li>
-                  <li>Kinh nghiệm với Testing (Jest, React Testing Library).</li>
-                  <li>Kỹ năng giải quyết vấn đề tốt và tư duy sản phẩm.</li>
-                </ul>
-              </div>
-            </section>
+            {job.requirements && (
+              <section className="space-y-6">
+                <h2 className="text-2xl font-bold border-l-4 border-primary pl-4">Yêu cầu ứng viên</h2>
+                <div className="text-slate-700 leading-relaxed space-y-4 whitespace-pre-wrap">
+                  {job.requirements}
+                </div>
+              </section>
+            )}
 
             {/* Benefits */}
-            <section className="space-y-6">
-              <h2 className="text-2xl font-bold border-l-4 border-primary pl-4">Quyền lợi</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-100 rounded-xl flex items-start gap-3">
-                  <span className="material-symbols-outlined text-primary">payments</span>
-                  <div>
-                    <p className="font-semibold text-sm">Lương & Thưởng</p>
-                    <p className="text-sm text-slate-500">Lương tháng 13 & thưởng dự án hấp dẫn</p>
-                  </div>
+            {job.benefits && (
+              <section className="space-y-6">
+                <h2 className="text-2xl font-bold border-l-4 border-primary pl-4">Quyền lợi</h2>
+                <div className="text-slate-700 leading-relaxed space-y-4 whitespace-pre-wrap">
+                  {job.benefits}
                 </div>
-                <div className="p-4 bg-slate-100 rounded-xl flex items-start gap-3">
-                  <span className="material-symbols-outlined text-primary">laptop_mac</span>
-                  <div>
-                    <p className="font-semibold text-sm">Thiết bị làm việc</p>
-                    <p className="text-sm text-slate-500">MacBook Pro M3 & Màn hình 4K</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-100 rounded-xl flex items-start gap-3">
-                  <span className="material-symbols-outlined text-primary">health_and_safety</span>
-                  <div>
-                    <p className="font-semibold text-sm">Bảo hiểm</p>
-                    <p className="text-sm text-slate-500">Gói chăm sóc sức khỏe PVI cao cấp</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-100 rounded-xl flex items-start gap-3">
-                  <span className="material-symbols-outlined text-primary">home_work</span>
-                  <div>
-                    <p className="font-semibold text-sm">Remote</p>
-                    <p className="text-sm text-slate-500">Làm việc linh hoạt 2 ngày/tuần tại nhà</p>
-                  </div>
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
+
+
           </div>
 
           {/* Sidebar */}
@@ -230,44 +360,46 @@ const JobDetail = () => {
               <h3 className="text-lg font-bold mb-6">Tóm tắt công việc</h3>
               <div className="space-y-5">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary shrink-0">
                     <span className="material-symbols-outlined">location_on</span>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 font-medium">Địa điểm</p>
-                    <p className="text-sm font-semibold">Quận 1, TP. Hồ Chí Minh</p>
+                    <p className="text-sm font-semibold">{job.location || 'Không xác định'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary shrink-0">
                     <span className="material-symbols-outlined">payments</span>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 font-medium">Mức lương</p>
-                    <p className="text-sm font-semibold">$2,500 - $4,000</p>
+                    <p className="text-sm font-semibold">{formatSalary(job.salary_min, job.salary_max, job.currency)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary shrink-0">
                     <span className="material-symbols-outlined">work</span>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 font-medium">Hình thức</p>
-                    <p className="text-sm font-semibold">Full-time, Hybrid</p>
+                    <p className="text-sm font-semibold">{getEmploymentTypeLabel(job.employment_type)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary shrink-0">
                     <span className="material-symbols-outlined">military_tech</span>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 font-medium">Kinh nghiệm</p>
-                    <p className="text-sm font-semibold">Senior (5+ năm)</p>
+                    <p className="text-sm font-semibold">{job.experience_level || 'Không yêu cầu'}</p>
                   </div>
                 </div>
               </div>
               <div className="mt-8 pt-8 border-t border-slate-100">
-                <button className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-all mb-4">
+                <button 
+                  onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
+                  className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-all mb-4">
                   Ứng tuyển ngay
                 </button>
                 <p className="text-[11px] text-center text-slate-400 italic">Hạn chót ứng tuyển: 30/11/2023</p>
@@ -287,6 +419,68 @@ const JobDetail = () => {
           </aside>
         </div>
       </main>
+
+      {/* Apply Modal */}
+      {isApplyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-all pb-10">
+          <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden border border-slate-100 transform transition-all translate-y-0 scale-100">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-bold text-slate-900">Ứng tuyển công việc</h3>
+                <button onClick={() => setIsApplyModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">Bạn đang ứng tuyển cho vị trí <strong>{job.title}</strong> tại <strong>{job.company_name || 'HireMind'}</strong>.</p>
+              
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Chọn CV của bạn</label>
+                  <div className="relative">
+                    <select 
+                      className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                      value={applySelectedCV}
+                      onChange={(e) => setApplySelectedCV(e.target.value)}
+                    >
+                      <option value="" disabled>-- Vui lòng chọn CV --</option>
+                      {cvs.length > 0 ? cvs.map(cv => (
+                        <option key={cv.id} value={cv.id}>{cv.file_name}</option>
+                      )) : (
+                        <option value="" disabled>Chưa có CV (Đăng tải CV ở trang Quản lý CV)</option>
+                      )}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                      <span className="material-symbols-outlined">expand_more</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button 
+                  onClick={() => setIsApplyModalOpen(false)}
+                  className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleApply}
+                  disabled={!applySelectedCV || isApplying}
+                  className={`flex-1 px-4 py-3 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${(applySelectedCV && !isApplying) ? 'bg-primary hover:bg-primary/90' : 'bg-slate-300 cursor-not-allowed'}`}
+                >
+                  {isApplying ? (
+                    <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <span className="material-symbols-outlined text-lg">send</span>
+                  )}
+                  {isApplying ? 'Đang gửi...' : 'Nộp CV'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

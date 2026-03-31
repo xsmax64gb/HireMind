@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from models.schemas import CVEmbedRequest
+from models.schemas import CVEmbedRequest, CVAnalysisRequest
 from services.chroma_service import chroma_service
+from services.ai_service import ai_service
 
 router = APIRouter()
 
@@ -28,3 +29,16 @@ async def delete_cv(cv_id: str):
         return {"message": "CV deleted successfully"}
     else:
         raise HTTPException(status_code=500, detail="Failed to delete CV")
+
+@router.post("/analyze")
+async def analyze_cv(request: CVAnalysisRequest):
+    try:
+        result = await ai_service.analyze_cv_match(
+            cv_text=request.cv_text,
+            job_title=request.job_title,
+            job_description=request.job_description,
+            requirements=request.requirements
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

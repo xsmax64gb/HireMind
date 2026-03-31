@@ -108,8 +108,7 @@ CREATE TABLE cv_files (
     
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    is_deleted TINYINT(1) DEFAULT 0 -- Soft delete flag
 );
 
 -- ================= 6. SKILLS =================
@@ -164,6 +163,21 @@ CREATE TABLE applications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (cv_id) REFERENCES cv_files(id) ON DELETE CASCADE
 );
+
+-- Bảng cache kết quả phân tích AI để tối ưu token
+CREATE TABLE IF NOT EXISTS cv_analysis_cache (  
+  id INT AUTO_INCREMENT PRIMARY KEY,   
+  cv_id INT NOT NULL,  
+  job_id INT NOT NULL,   
+  user_id VARCHAR(50) NOT NULL,   
+  strengths JSON,
+  match_score FLOAT,    improvements JSON,   
+  summary TEXT,   
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    
+  UNIQUE KEY (cv_id, job_id),  
+  FOREIGN KEY (cv_id) REFERENCES cv_files(id) ON DELETE CASCADE,  
+  FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+  );
 
 -- ================= 10. INTERVIEW SESSIONS (AI MÔ PHỎNG) =================
 CREATE TABLE interview_sessions (

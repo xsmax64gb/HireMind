@@ -9,6 +9,8 @@ const ForgotPasswordPage = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -159,32 +161,54 @@ const ForgotPasswordPage = () => {
 
               <div className="space-y-2 text-left mt-4">
                 <label className="text-sm font-medium leading-none" htmlFor="password">Mật khẩu mới</label>
-                <input 
-                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-ring disabled:opacity-50" 
-                  id="password" 
-                  name="password" 
-                  type="password"
-                  placeholder="••••••••" 
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
+                <div className="relative">
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-ring disabled:opacity-50 pr-10" 
+                    id="password" 
+                    name="password" 
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••" 
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-0 h-full flex items-center justify-center text-zinc-400 hover:text-black transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2 text-left mt-2">
                 <label className="text-sm font-medium leading-none" htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
-                <input 
-                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-ring disabled:opacity-50" 
-                  id="confirm-password" 
-                  name="confirm-password" 
-                  type="password"
-                  placeholder="••••••••" 
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
-                />
+                <div className="relative">
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-ring disabled:opacity-50 pr-10" 
+                    id="confirm-password" 
+                    name="confirm-password" 
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••" 
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-0 h-full flex items-center justify-center text-zinc-400 hover:text-black transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <button 

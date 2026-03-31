@@ -1,4 +1,5 @@
 import JobModel from '../models/jobModel.js';
+import ApplicationModel from '../models/applicationModel.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -250,6 +251,37 @@ class JobController {
             res.status(200).json(questions);
         } catch (error) {
             console.error('Get interview questions error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
+    static async getJobCandidates(req, res) {
+        try {
+            const { id } = req.params;
+            const recruiter_id = req.user.id;
+            const candidates = await ApplicationModel.getByJobIdWithCandidates(id, recruiter_id);
+            res.status(200).json(candidates);
+        } catch (error) {
+            console.error('Get job candidates error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
+    static async updateApplicationStatus(req, res) {
+        try {
+            const { id, applicationId } = req.params;
+            const recruiter_id = req.user.id;
+            const { status } = req.body;
+
+            const updated = await ApplicationModel.updateStatus(applicationId, recruiter_id, status);
+            
+            if (!updated) {
+                return res.status(404).json({ message: 'Application not found or unauthorized' });
+            }
+
+            res.status(200).json({ message: 'Status updated successfully' });
+        } catch (error) {
+            console.error('Update status error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }
