@@ -55,8 +55,9 @@ export const uploadCV = async (req, res) => {
 
         // 4. Send to AI service to generate embedding
         const chromaId = `cv_${cvId}`;
+        const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
         try {
-            await axios.post(`${process.env.AI_SERVICE_URL}/api/v1/cv/embed`, {
+            await axios.post(`${AI_SERVICE_URL}/api/v1/cv/embed`, {
                 cv_id: chromaId,
                 user_id: userId,
                 extracted_text: extractedText,
@@ -66,7 +67,6 @@ export const uploadCV = async (req, res) => {
             await CVModel.updateChromaId(cvId, chromaId);
         } catch (aiError) {
             console.error('Lỗi khi lưu embedding CV vào ChromaDB:', aiError.message);
-            // Optionally, we can proceed without failing the whole request
         }
 
         res.status(201).json({
@@ -171,5 +171,64 @@ export const analyzeCV = async (req, res) => {
     } catch (error) {
         console.error('Lỗi phân tích CV:', error?.response?.data || error);
         res.status(500).json({ message: 'Lỗi server khi phân tích CV' });
+    }
+};
+
+export const getRecommendedJobs = async (req, res) => {
+    try {
+        const { id: cvId } = req.params;
+        const userId = req.user.id;
+
+        const cv = await CVModel.getById(cvId);
+        if (!cv || cv.user_id !== userId) {
+            return res.status(404).json({ message: 'CV không tồn tại hoặc không có quyền truy cập' });
+        }
+
+        if (!cv.chroma_id) {
+            return res.status(400).json({ message: 'CV này chưa được xử lý bởi hệ thống AI' });
+        }
+
+        // 1. Call AI Service to get similar job IDs from Chroma
+        const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/api/v1/cv/recommend-jobs`, {
+            cv_id: cv.chroma_id,
+            n_results: 6
+        });
+
+        const chromaResults = aiResponse.data; // This is the Chroma query result object
+        const ids = chromaResults.ids ? chromaResults.ids[0] : [];
+        const distances = chromaResults.distances ? chromaResults.distances[0] : [];
+
+        if (ids.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // 2. Fetch full job details from MySQL
+        // IDs from Chroma are strings like '1', '2' etc. (based on how they were added)
+        const jobDetails = await JobModel.findByIds(ids);
+
+        // 3. Combine with distance/score and filter
+        const recommendations = jobDetails
+            .map(job => {
+                const index = ids.indexOf(String(job.id));
+                if (index === -1) return { ...job, match_score: null };
+
+                // match_score = cosine_similarity (Phạm vi [0, 1])
+                let score = 1 - distances[index];
+                
+                // Đảm bảo score nằm trong [0, 1]
+                score = Math.max(0, Math.min(1, score));
+
+                return {
+                    ...job,
+                    match_score: score
+                };
+            })
+            .filter(job => job.match_score >= 0.5) // CHỈ HIỂN THỊ TRÊN 50%
+            .sort((a, b) => b.match_score - a.match_score); // ƯU TIÊN CAO XẾP TRƯỚC
+
+        res.status(200).json(recommendations);
+    } catch (error) {
+        console.error('Lỗi lấy gợi ý việc làm:', error?.response?.data || error);
+        res.status(500).json({ message: 'Lỗi server khi lấy gợi ý việc làm' });
     }
 };

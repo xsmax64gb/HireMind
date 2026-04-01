@@ -336,6 +336,22 @@ class JobModel {
             if (connection) connection.release();
         }
     }
+    static async findByIds(ids) {
+        if (!ids || ids.length === 0) return [];
+        const placeholders = ids.map(() => '?').join(',');
+        const query = `
+            SELECT j.*, rp.company_name, rp.company_logo_url 
+            FROM jobs j
+            LEFT JOIN recruiter_profiles rp ON j.recruiter_id = rp.user_id
+            WHERE j.id IN (${placeholders}) AND j.status = 'open'
+        `;
+        const [rows] = await pool.execute(query, ids);
+        
+        // Sort by the original order of IDs to maintain recommendation ranking
+        // Note: IDs from Chroma might be strings while DB IDs are integers
+        const idMap = new Map(rows.map(job => [String(job.id), job]));
+        return ids.map(id => idMap.get(String(id))).filter(job => job !== undefined);
+    }
 }
 
 export default JobModel;

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from models.schemas import CVEmbedRequest, CVAnalysisRequest
+from models.schemas import CVEmbedRequest, CVAnalysisRequest, CVRecommendationRequest
 from services.chroma_service import chroma_service
 from services.ai_service import ai_service
 
@@ -40,5 +40,16 @@ async def analyze_cv(request: CVAnalysisRequest):
             requirements=request.requirements
         )
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/recommend-jobs")
+async def recommend_jobs(request: CVRecommendationRequest):
+    try:
+        results = chroma_service.query_similar_jobs(
+            cv_id=request.cv_id,
+            n_results=request.n_results
+        )
+        return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

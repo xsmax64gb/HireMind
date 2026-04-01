@@ -18,3 +18,7 @@ class CVAnalysisRequest(BaseModel):
     job_title: str
     job_description: str
     requirements: Optional[str] = ""
+
+class CVRecommendationRequest(BaseModel):
+    cv_id: str
+    n_results: Optional[int] = 5

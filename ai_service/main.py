@@ -23,4 +23,14 @@ app.include_router(cv_routes.router, prefix=f"{settings.API_V1_STR}/cv", tags=["
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    from services.chroma_service import chroma_service
+    try:
+        jobs_count = len(chroma_service.jobs_collection.get()["ids"])
+        cvs_count = len(chroma_service.cvs_collection.get()["ids"])
+        return {
+            "status": "ok", 
+            "jobs_in_chroma": jobs_count, 
+            "cvs_in_chroma": cvs_count
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

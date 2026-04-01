@@ -1,9 +1,11 @@
+import axios from 'axios';
+import dotenv from 'dotenv';
 import JobModel from '../models/jobModel.js';
 import ApplicationModel from '../models/applicationModel.js';
-import dotenv from 'dotenv';
+
 dotenv.config();
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
 
 class JobController {
     static async createJob(req, res) {
@@ -20,25 +22,21 @@ class JobController {
             
             // Generate embedding and save to Chroma
             try {
-                const aiResponse = await fetch(`${AI_SERVICE_URL}/api/v1/job/embed`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        job_id: jobId.toString(),
-                        job_title: jobData.title,
-                        job_description: jobData.description,
-                        requirements: jobData.requirements || '',
-                        recruiter_id: recruiter_id.toString()
-                    })
+                const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/v1/job/embed`, {
+                    job_id: jobId.toString(),
+                    job_title: jobData.title,
+                    job_description: jobData.description,
+                    requirements: jobData.requirements || '',
+                    recruiter_id: recruiter_id.toString()
                 });
 
-                if (!aiResponse.ok) {
-                    console.error('Failed to embed job to Chroma');
-                } else {
+                if (aiResponse.status === 200 || aiResponse.status === 201) {
                     await JobModel.updateEmbeddingStatus(jobId, jobId.toString());
+                } else {
+                    console.error('Failed to embed job to Chroma: Status', aiResponse.status);
                 }
             } catch (aiError) {
-                console.error('Error connecting to AI Service for embedding:', aiError);
+                console.error('Error connecting to AI Service for embedding:', aiError.message);
             }
 
             res.status(201).json({
@@ -125,15 +123,13 @@ class JobController {
 
             // Sync with AI Service (delete from Chroma)
             try {
-                const aiResponse = await fetch(`${AI_SERVICE_URL}/api/v1/job/${id}`, {
-                    method: 'DELETE'
-                });
+                const aiResponse = await axios.delete(`${AI_SERVICE_URL}/api/v1/job/${id}`);
 
-                if (!aiResponse.ok) {
-                    console.error(`AI Service Delete Error for job ${id}:`, await aiResponse.text());
+                if (aiResponse.status !== 200) {
+                    console.error(`AI Service Delete Error for job ${id}:`, aiResponse.data);
                 }
             } catch (aiError) {
-                console.error(`AI Service Connection Error for job ${id} deletion:`, aiError);
+                console.error(`AI Service Connection Error for job ${id} deletion:`, aiError.message);
             }
 
             res.status(200).json({ message: 'Job deleted successfully' });
@@ -153,24 +149,19 @@ class JobController {
                 return res.status(404).json({ message: 'Job not found or unauthorized' });
             }
 
-            const aiResponse = await fetch(`${process.env.AI_SERVICE_URL}/api/v1/interview/generate-questions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    job_id: id,
-                    job_title: job.title,
-                    job_description: job.description,
-                    requirements: job.requirements,
-                    skills: skills || []
-                })
+            const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/api/v1/interview/generate-questions`, {
+                job_id: id,
+                job_title: job.title,
+                job_description: job.description,
+                requirements: job.requirements,
+                skills: skills || []
             });
 
-            if (!aiResponse.ok) {
-                const errorData = await aiResponse.json();
-                console.error('AI Service Error:', errorData);
+            if (aiResponse.status !== 200) {
+                console.error('AI Service Error:', aiResponse.data);
                 throw new Error('AI Service error');
             }
-            const data = await aiResponse.json();
+            const data = aiResponse.data;
 
             res.status(200).json({
                 message: 'Questions generated successfully',

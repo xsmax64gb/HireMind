@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { uploadCV, getMyCVs, deleteCV, analyzeCV } from '../controllers/cvController.js';
+import { uploadCV, getMyCVs, deleteCV, analyzeCV, getRecommendedJobs } from '../controllers/cvController.js';
 import authMiddleware from '../middlewares/auth.js';
 const { verifyToken, isCandidate } = authMiddleware;
 import { uploadCV as multerUpload } from '../config/multer.js';
@@ -10,5 +10,6 @@ router.post('/upload', verifyToken, isCandidate, multerUpload.single('file'), up
 router.get('/', verifyToken, isCandidate, getMyCVs);
 router.delete('/:id', verifyToken, isCandidate, deleteCV);
 router.post('/:id/analyze', verifyToken, isCandidate, analyzeCV);
+router.get('/:id/recommendations', verifyToken, isCandidate, getRecommendedJobs);
 
 export default router;
