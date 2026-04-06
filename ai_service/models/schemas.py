@@ -22,3 +22,14 @@ class CVAnalysisRequest(BaseModel):
 class CVRecommendationRequest(BaseModel):
     cv_id: str
     n_results: Optional[int] = 5
+
+class InterviewGenerateRequest(BaseModel):
+    job_title: str
+    job_description: str
+    requirements: Optional[str] = ""
+
+class InterviewEvaluateRequest(BaseModel):
+    question: str
+    answer: str
+    job_title: str
+    job_description: str

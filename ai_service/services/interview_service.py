@@ -65,4 +65,74 @@ class InterviewService:
             print(f"Error generating questions: {str(e)}")
             return []
 
+    async def generate_mock_interview_questions(self, job_title: str, job_description: str, requirements: str) -> List[str]:
+        """
+        Generate 5-7 mock interview questions for candidate.
+        """
+        prompt = f"""
+        Bạn là một chuyên gia nhân sự (HR) đóng vai trò người phỏng vấn trực tiếp ứng viên cho vị trí {job_title}.
+        
+        Mô tả công việc: {job_description}
+        Yêu cầu: {requirements}
+
+        Nhiệm vụ: Hãy tạo ra từ 5 đến 7 câu hỏi phỏng vấn bằng Tiếng Việt để hỏi ứng viên một cách tự nhiên như một buổi phỏng vấn thực tế.
+        Các câu hỏi nên đánh giá về mặt chuyên môn và kinh nghiệm thực tế.
+        
+        Trả về kết quả dưới dạng JSON với một key duy nhất là "questions" chứa mảng các câu hỏi (chuỗi string).
+        Chỉ trả về JSON hợp lệ.
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a professional HR conducting an interview. Return JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            import json
+            content = response.choices[0].message.content
+            return json.loads(content).get("questions", [])
+        except Exception as e:
+            print(f"Error generating mock questions: {str(e)}")
+            return []
+
+    async def evaluate_mock_interview_answer(self, question: str, answer: str, job_title: str, job_description: str) -> dict:
+        """
+        Evaluate candidate's answer without soft skills.
+        """
+        prompt = f"""
+        Bạn là một chuyên gia nhân sự. Ứng viên đang phỏng vấn cho vị trí {job_title}.
+        
+        Bối cảnh công việc: {job_description}
+        
+        Câu hỏi của bạn: {question}
+        Câu trả lời của ứng viên: {answer}
+
+        Nhiệm vụ: 
+        Đánh giá độ chính xác và chuyên môn của câu trả lời. 
+         KHÔNG đánh giá kỹ năng mềm.
+        
+        Vui lòng trả về định dạng JSON với các thông tin sau:
+        - "score": Điểm số độ chính xác chuyên môn (từ 0.0 đến 10.0).
+        - "feedback": Nhận xét ngắn gọn, chỉ ra điểm đúng, điểm sai hoặc thiếu sót.
+        - "perfect_answer": Gợi ý cách trả lời hoàn hảo cho câu hỏi này.
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert HR evaluating a candidate's answer. Return JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            import json
+            content = response.choices[0].message.content
+            return json.loads(content)
+        except Exception as e:
+            print(f"Error evaluating answer: {str(e)}")
+            return {"score": 0, "feedback": "Có lỗi hệ thống khi đánh giá AI.", "perfect_answer": ""}
+
 interview_service = InterviewService()
+

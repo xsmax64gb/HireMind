@@ -16,6 +16,9 @@ const JobDetail = () => {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [aiResult, setAiResult] = useState(null);
+  const [interviewStatus, setInterviewStatus] = useState(null);
+  const [interviewSessionId, setInterviewSessionId] = useState(null);
+  const [hasApplication, setHasApplication] = useState(false);
   
   // Apply Modal state
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -43,8 +46,9 @@ const JobDetail = () => {
       }
 
       await apiClient.post(`/jobs/${job.id}/apply`, payload);
-      alert('Ứng tuyển thành công! Nhà tuyển dụng sẽ xem xét hồ sơ của bạn.');
+      alert('Ứng tuyển thành công! Nhà tuyển dụng sẽ xem xét hồ sơ của bạn. Bạn đã có thể bắt đầu phỏng vấn giả lập AI.');
       setIsApplyModalOpen(false);
+      setHasApplication(true);
     } catch (error) {
       console.error('Error applying:', error);
       alert(error?.message || error?.response?.data?.message || 'Có lỗi xảy ra khi ứng tuyển. Vui lòng thử lại.');
@@ -91,11 +95,29 @@ const JobDetail = () => {
       }
     };
 
+    const fetchInterviewStatus = async () => {
+      try {
+        const data = await apiClient.get(`/mock-interviews/status/${id}`);
+        if (data) {
+          setHasApplication(data.hasApplication);
+          if (data.hasInterview) {
+            setInterviewStatus(data.status);
+            setInterviewSessionId(data.sessionId);
+          }
+        }
+      } catch (error) {
+        // Ignores
+      }
+    };
+
     fetchJob();
     if (user) {
       fetchCVs();
+      if (user.role === 'candidate') {
+          fetchInterviewStatus();
+      }
     }
-  }, [id]);
+  }, [id, user]);
 
   const formatSalary = (min, max, currency) => {
     if (!min && !max) return 'Thỏa thuận';
@@ -190,10 +212,35 @@ const JobDetail = () => {
               </div>
             </div>
           </div>
-          <div className="flex gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
+          <div className="flex flex-wrap md:flex-nowrap gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
             <button className="flex-1 md:flex-none px-6 py-3 border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
               <span className="material-symbols-outlined text-lg">bookmark</span> Lưu tin
             </button>
+            {interviewStatus === 'completed' ? (
+                <Link to={`/interview/${id}`} className="flex-1 md:flex-none px-6 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg font-bold text-sm hover:bg-green-100 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                  <span className="material-symbols-outlined text-lg">check_circle</span> Đã phỏng vấn
+                </Link>
+            ) : interviewStatus === 'in_progress' ? (
+                <Link to={`/interview/${id}`} className="flex-1 md:flex-none px-6 py-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg font-bold text-sm hover:bg-amber-100 transition-all flex items-center justify-center gap-2 whitespace-nowrap group">
+                  <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span> Tiếp tục phỏng vấn AI
+                </Link>
+            ) : (
+                <Link 
+                  onClick={(e) => {
+                      if (!hasApplication && user) {
+                          e.preventDefault();
+                          alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
+                          setIsApplyModalOpen(true);
+                      } else if (!user) {
+                          e.preventDefault();
+                          alert('Vui lòng đăng nhập!');
+                      }
+                  }}
+                  to={`/interview/${id}`} 
+                  className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 border border-slate-300 rounded-lg font-bold text-sm hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all flex items-center justify-center gap-2 whitespace-nowrap group">
+                  <span className="material-symbols-outlined text-lg group-hover:rotate-12 transition-transform">record_voice_over</span> Phỏng vấn AI
+                </Link>
+            )}
             <button 
               onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
               className="flex-1 md:flex-none px-8 py-3 bg-primary text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/10 whitespace-nowrap">
@@ -310,12 +357,7 @@ const JobDetail = () => {
                           </ul>
                         </div>
                       </div>
-                      <div className="mt-6 flex justify-center md:justify-start">
-                        <Link to={`/interview/${id}`} className="inline-flex group relative items-center gap-2 px-8 py-4 bg-white text-primary font-bold rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                          <span className="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform">record_voice_over</span>
-                          <span>Phỏng vấn thử với AI</span>
-                        </Link>
-                      </div>
+                      {/* Đã di chuyển nút Phỏng vấn AI ra ngoài */}
                     </div>
                   </div>
                 </div>
@@ -396,12 +438,40 @@ const JobDetail = () => {
                   </div>
                 </div>
               </div>
-              <div className="mt-8 pt-8 border-t border-slate-100">
+              <div className="mt-8 pt-6 border-t border-slate-100">
                 <button 
                   onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
-                  className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-all mb-4">
+                  className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-all mb-3 text-sm">
                   Ứng tuyển ngay
                 </button>
+                {interviewStatus === 'completed' ? (
+                    <Link to={`/interview/${id}`} className="w-full py-3.5 bg-green-50 text-green-700 border-2 border-green-200 rounded-xl font-bold hover:bg-green-100 transition-all mb-4 flex items-center justify-center gap-2 text-sm group">
+                      <span className="material-symbols-outlined text-lg">fact_check</span>
+                      Xem lại Đánh giá AI
+                    </Link>
+                ) : interviewStatus === 'in_progress' ? (
+                    <Link to={`/interview/${id}`} className="w-full py-3.5 bg-amber-50 text-amber-700 border-2 border-amber-200 rounded-xl font-bold hover:bg-amber-100 transition-all mb-4 flex items-center justify-center gap-2 text-sm group">
+                      <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                      Tiếp tục phỏng vấn thử
+                    </Link>
+                ) : (
+                    <Link 
+                      onClick={(e) => {
+                          if (!hasApplication && user) {
+                              e.preventDefault();
+                              alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
+                              setIsApplyModalOpen(true);
+                          } else if (!user) {
+                              e.preventDefault();
+                              alert('Vui lòng đăng nhập!');
+                          }
+                      }}
+                      to={`/interview/${id}`} 
+                      className="w-full py-3.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl font-bold hover:bg-slate-900 hover:text-white transition-all mb-4 flex items-center justify-center gap-2 text-sm group">
+                      <span className="material-symbols-outlined text-lg group-hover:rotate-12 transition-transform">record_voice_over</span>
+                      Phỏng vấn thử với AI
+                    </Link>
+                )}
                 <p className="text-[11px] text-center text-slate-400 italic">Hạn chót ứng tuyển: 30/11/2023</p>
               </div>
 

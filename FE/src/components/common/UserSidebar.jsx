@@ -56,6 +56,17 @@ const UserSidebar = ({ user, handleLogout, profileName }) => {
               <span className="material-symbols-outlined text-[20px]">work</span>
               <span className="text-[13px]">Đơn ứng tuyển</span>
             </Link>
+            <Link 
+              to="/interview-history" 
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                currentPath === '/interview-history' 
+                  ? 'bg-slate-200/60 text-slate-900 font-bold' 
+                  : 'text-slate-500 hover:bg-slate-200/40 hover:text-slate-900 font-semibold'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[20px]">record_voice_over</span>
+              <span className="text-[13px]">Phỏng vấn AI</span>
+            </Link>
           </>
         )}
 

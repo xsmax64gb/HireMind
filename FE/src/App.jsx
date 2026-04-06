@@ -6,6 +6,7 @@ import HomePage from '@/pages/user/Home';
 import JobsPage from '@/pages/user/Jobs';
 import JobDetail from '@/pages/user/JobDetail';
 import MockInterview from '@/pages/user/MockInterview';
+import InterviewHistory from '@/pages/user/InterviewHistory';
 import ProfilePage from '@/pages/user/Profile';
 import ProfileCV from '@/pages/user/ProfileCV';
 import ProfileApplications from '@/pages/user/ProfileApplications';
@@ -34,6 +35,7 @@ function App() {
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
         <Route path="/interview/:id" element={<MockInterview />} />
+        <Route path="/interview-history" element={<InterviewHistory />} />
         <Route path="/profile" element={<ProtectedRoute allowedRoles={['candidate', 'admin', 'recruiter']}><ProfilePage /></ProtectedRoute>} />
         <Route path="/profile/cv" element={<ProtectedRoute allowedRoles={['candidate']}><ProfileCV /></ProtectedRoute>} />
         <Route path="/profile/applications" element={<ProtectedRoute allowedRoles={['candidate']}><ProfileApplications /></ProtectedRoute>} />
