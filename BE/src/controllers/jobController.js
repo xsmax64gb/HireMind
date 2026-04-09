@@ -76,6 +76,17 @@ class JobController {
         }
     }
 
+    static async getRecruiterDashboard(req, res) {
+        try {
+            const recruiter_id = req.user.id;
+            const stats = await JobModel.getDashboardStats(recruiter_id);
+            res.status(200).json(stats);
+        } catch (error) {
+            console.error('Get recruiter dashboard error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
     static async getJobById(req, res) {
         try {
             const { id } = req.params;

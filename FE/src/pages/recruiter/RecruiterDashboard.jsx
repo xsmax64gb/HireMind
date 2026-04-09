@@ -1,18 +1,75 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUser, removeToken, removeUser } from '@/utils/authUtils';
 import RecruiterSidebar from '@/components/common/RecruiterSidebar';
 import RecruiterHeader from '@/components/common/RecruiterHeader';
+import jobService from '@/services/jobService';
 
 const RecruiterDashboard = () => {
   const navigate = useNavigate();
   const user = getUser();
+  const [stats, setStats] = useState({
+    totalCandidates: 0,
+    activeJobs: 0,
+    recentCandidates: [],
+    popularJobs: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const data = await jobService.getRecruiterDashboard();
+        if (data && !data.message) {
+          setStats(data);
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
 
   const handleLogout = () => {
     removeToken();
     removeUser();
     navigate('/login');
   };
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.charAt(0).toUpperCase();
+  };
+
+  const getTimeAgo = (date) => {
+    if (!date) return '';
+    const now = new Date();
+    const past = new Date(date);
+    const diffInSeconds = Math.floor((now - past) / 1000);
+    
+    if (diffInSeconds < 60) return `${diffInSeconds} giây trước`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+    return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-slate-50 text-slate-900 h-screen flex font-display antialiased overflow-hidden">
+        <RecruiterSidebar activeTab="dashboard" user={user} />
+        <div className="flex-1 flex flex-col min-w-0 h-full">
+          <RecruiterHeader user={user} />
+          <main className="flex-1 p-6 lg:p-10 overflow-y-auto w-full flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex font-display antialiased overflow-hidden">
       
@@ -53,7 +110,7 @@ const RecruiterDashboard = () => {
                   </span>
                 </div>
                 <div>
-                  <h3 className="text-[28px] font-extrabold text-slate-900 leading-none mb-1">2,450</h3>
+                  <h3 className="text-[28px] font-extrabold text-slate-900 leading-none mb-1">{stats?.totalCandidates?.toLocaleString() ?? 0}</h3>
                   <p className="text-[13px] font-semibold text-slate-500">Tổng ứng viên</p>
                 </div>
               </div>
@@ -67,7 +124,7 @@ const RecruiterDashboard = () => {
                   <span className="text-slate-500 text-[12px] font-bold bg-slate-100 px-2 py-0.5 rounded">Hiện tại</span>
                 </div>
                 <div>
-                  <h3 className="text-[28px] font-extrabold text-slate-900 leading-none mb-1">14</h3>
+                  <h3 className="text-[28px] font-extrabold text-slate-900 leading-none mb-1">{stats?.activeJobs?.toLocaleString() ?? 0}</h3>
                   <p className="text-[13px] font-semibold text-slate-500">Vị trí đang tuyển</p>
                 </div>
               </div>
@@ -84,69 +141,55 @@ const RecruiterDashboard = () => {
                     <Link to="/recruiter/jobs/1/candidates" className="text-[13px] font-bold text-primary hover:underline">Xem tất cả</Link>
                   </div>
                   <div className="p-2">
-                    {/* Applicant 1 */}
-                    <div className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer">
-                      <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200">A</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">Nguyễn Văn An</p>
-                        <p className="text-[12px] font-medium text-slate-500 truncate">Ứng tuyển: Senior Frontend Developer</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-bold">
-                          <span className="size-1.5 rounded-full bg-amber-500"></span>
-                          Đang chờ xử lý
-                        </span>
-                        <p className="text-[11px] text-slate-400 font-medium mt-1">2 giờ trước</p>
-                      </div>
-                    </div>
+                    {stats?.recentCandidates && stats.recentCandidates.length > 0 ? stats.recentCandidates.map((applicant, index) => {
+                      const colors = ['slate', 'blue', 'emerald', 'amber', 'rose', 'violet', 'sky'];
+                      const colorTheme = colors[index % colors.length];
+                      
+                      let statusText = 'Đang chờ xử lý';
+                      let bgStatus = 'bg-amber-50';
+                      let textStatus = 'text-amber-700';
+                      let dotStatus = 'bg-amber-500';
 
-                    {/* Applicant 2 */}
-                    <div className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer">
-                      <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 border border-blue-200">B</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">Lê Thị Bình</p>
-                        <p className="text-[12px] font-medium text-slate-500 truncate">Ứng tuyển: UI/UX Designer</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sky-50 text-sky-700 text-[11px] font-bold">
-                          <span className="size-1.5 rounded-full bg-sky-500"></span>
-                          Đã xem xét
-                        </span>
-                        <p className="text-[11px] text-slate-400 font-medium mt-1">5 giờ trước</p>
-                      </div>
-                    </div>
+                      if (applicant.status === 'reviewed') {
+                        statusText = 'Đã xem xét';
+                        bgStatus = 'bg-sky-50';
+                        textStatus = 'text-sky-700';
+                        dotStatus = 'bg-sky-500';
+                      } else if (applicant.status === 'interviewing') {
+                        statusText = 'Phỏng vấn';
+                        bgStatus = 'bg-emerald-50';
+                        textStatus = 'text-emerald-700';
+                        dotStatus = 'bg-emerald-500';
+                      } else if (applicant.status === 'rejected') {
+                        statusText = 'Đã từ chối';
+                        bgStatus = 'bg-slate-100';
+                        textStatus = 'text-slate-600';
+                        dotStatus = 'bg-slate-400';
+                      }
 
-                    {/* Applicant 3 */}
-                    <div className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer">
-                      <div className="size-10 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-600 border border-emerald-200">M</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">Trần Minh Quân</p>
-                        <p className="text-[12px] font-medium text-slate-500 truncate">Ứng tuyển: Product Manager</p>
+                      return (
+                        <div key={applicant.id} onClick={() => navigate(`/recruiter/jobs/${applicant.job_id}/candidates`)} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer">
+                          <div className={`size-10 rounded-full bg-${colorTheme}-100 flex items-center justify-center font-bold text-${colorTheme}-600 border border-${colorTheme}-200`}>
+                            {getInitials(applicant.candidate_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">{applicant.candidate_name}</p>
+                            <p className="text-[12px] font-medium text-slate-500 truncate">Ứng tuyển: {applicant.job_title}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md ${bgStatus} ${textStatus} text-[11px] font-bold`}>
+                              <span className={`size-1.5 rounded-full ${dotStatus}`}></span>
+                              {statusText}
+                            </span>
+                            <p className="text-[11px] text-slate-400 font-medium mt-1">{getTimeAgo(applicant.applied_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="p-8 text-center text-slate-500">
+                        <p>Chưa có ứng viên nào.</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold">
-                          <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                          Phỏng vấn
-                        </span>
-                        <p className="text-[11px] text-slate-400 font-medium mt-1">Hôm qua</p>
-                      </div>
-                    </div>
-                    
-                    {/* Applicant 4 */}
-                    <div className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer">
-                      <div className="size-10 rounded-full bg-rose-100 flex items-center justify-center font-bold text-rose-600 border border-rose-200">T</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">Phạm Thanh Tâm</p>
-                        <p className="text-[12px] font-medium text-slate-500 truncate">Ứng tuyển: Mobile Engineer</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold">
-                          <span className="size-1.5 rounded-full bg-slate-400"></span>
-                          Đã từ chối
-                        </span>
-                        <p className="text-[11px] text-slate-400 font-medium mt-1">Hôm qua</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -177,25 +220,29 @@ const RecruiterDashboard = () => {
                     <h3 className="font-bold text-[16px] text-slate-900">Tin tuyển dụng nổi bật</h3>
                   </div>
                   <div className="p-2">
-                    <Link to="/recruiter/jobs/1/candidates" className="flex flex-col gap-1 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[14px] font-bold text-slate-900 group-hover:text-primary transition-colors">Senior Frontend Developer</span>
-                        <span className="text-[12px] font-bold text-emerald-600">48 hồ sơ</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-emerald-500 h-full w-[40%]"></div>
-                      </div>
-                    </Link>
+                    {stats?.popularJobs && stats.popularJobs.length > 0 ? stats.popularJobs.map((job, index) => {
+                      const colors = ['emerald', 'blue', 'amber', 'rose', 'violet'];
+                      const colorTheme = colors[index % colors.length];
+                      // Randomize width for skeleton effect if we want, or just set it fixed. Let's make it fixed based on count.
+                      const maxApp = Math.max(...stats.popularJobs.map(j => j.application_count), 1);
+                      const width = Math.max(10, Math.floor((job.application_count / maxApp) * 100));
 
-                    <Link to="/recruiter/jobs/2/candidates" className="flex flex-col gap-1 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[14px] font-bold text-slate-900 group-hover:text-primary transition-colors">UI/UX Designer</span>
-                        <span className="text-[12px] font-bold text-blue-600">24 hồ sơ</span>
+                      return (
+                        <Link key={job.id} to={`/recruiter/jobs/${job.id}/candidates`} className="flex flex-col gap-1 p-3 hover:bg-slate-50 rounded-xl transition-colors group">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[14px] font-bold text-slate-900 group-hover:text-primary transition-colors">{job.title}</span>
+                            <span className={`text-[12px] font-bold text-${colorTheme}-600`}>{job.application_count} hồ sơ</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className={`bg-${colorTheme}-500 h-full`} style={{ width: `${width}%` }}></div>
+                          </div>
+                        </Link>
+                      );
+                    }) : (
+                      <div className="p-4 text-center text-slate-500">
+                        <p>Chưa có dữ liệu.</p>
                       </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-blue-500 h-full w-[25%]"></div>
-                      </div>
-                    </Link>
+                    )}
                   </div>
                 </div>
 

@@ -29,6 +29,12 @@ router.get('/recruiter/my-jobs',
     JobController.getRecruiterJobs
 );
 
+router.get('/recruiter/dashboard',
+    authMiddleware.verifyToken,
+    authMiddleware.isRecruiter,
+    JobController.getRecruiterDashboard
+);
+
 router.put('/:id', 
     authMiddleware.verifyToken, 
     authMiddleware.isRecruiter, 

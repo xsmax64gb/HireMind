@@ -111,9 +111,9 @@ class JobModel {
     static async findByRecruiterId(recruiterId) {
         const [rows] = await pool.execute(
             `SELECT j.*, 
-            (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) as application_count
+             (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.id) as application_count
             FROM jobs j 
-            WHERE j.recruiter_id = ? 
+            WHERE j.recruiter_id = ? AND j.status != 'deleted'
             ORDER BY j.created_at DESC`,
             [recruiterId]
         );
@@ -142,6 +142,74 @@ class JobModel {
         }
         
         return job;
+    }
+
+    static async findAllForAdmin({ search, status, sort = 'desc', limit = 10, offset = 0 }) {
+        let whereClause = "WHERE 1=1";
+        let queryParams = [];
+
+        if (search) {
+            whereClause += ' AND (j.title LIKE ? OR rp.company_name LIKE ? OR u.name LIKE ?)';
+            const searchParam = `%${search}%`;
+            queryParams.push(searchParam, searchParam, searchParam);
+        }
+
+        if (status) {
+            whereClause += ' AND j.status = ?';
+            queryParams.push(status);
+        } else {
+            whereClause += ` AND j.status != 'deleted'`;
+        }
+
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM jobs j 
+            LEFT JOIN recruiter_profiles rp ON j.recruiter_id = rp.user_id
+            LEFT JOIN users u ON j.recruiter_id = u.id
+            ${whereClause}
+        `;
+        const [countRows] = await pool.execute(countQuery, queryParams);
+        const total = countRows[0].total;
+
+        let query = `
+            SELECT j.*, rp.company_name, u.name as recruiter_name 
+            FROM jobs j
+            LEFT JOIN recruiter_profiles rp ON j.recruiter_id = rp.user_id
+            LEFT JOIN users u ON j.recruiter_id = u.id
+            ${whereClause}
+        `;
+
+        if (sort === 'asc') {
+            query += ' ORDER BY j.created_at ASC';
+        } else {
+            query += ' ORDER BY j.created_at DESC';
+        }
+
+        query += ' LIMIT ? OFFSET ?';
+        queryParams.push(limit.toString(), offset.toString());
+
+        const [jobs] = await pool.execute(query, queryParams);
+        return { jobs: jobs, total };
+    }
+
+    static async updateStatus(id, status) {
+        const [result] = await pool.execute('UPDATE jobs SET status = ? WHERE id = ?', [status, id]);
+        return result.affectedRows > 0;
+    }
+
+    static async adminDelete(id) {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+
+            const [result] = await connection.execute("UPDATE jobs SET status = 'deleted' WHERE id = ?", [id]);
+
+            return result.affectedRows > 0;
+        } catch (error) {
+            throw error;
+        } finally {
+            if (connection) connection.release();
+        }
     }
 
     static async update(id, recruiterId, jobData) {
@@ -294,43 +362,14 @@ class JobModel {
         let connection;
         try {
             connection = await pool.getConnection();
-            await connection.beginTransaction();
 
-            // 1. Delete associated interview questions
-            await connection.execute(
-                'DELETE FROM job_interview_questions WHERE job_id = ?',
-                [id]
-            );
-
-            // 2. Delete associated job skills
-            await connection.execute(
-                'DELETE FROM job_skills WHERE job_id = ?',
-                [id]
-            );
-
-            // 3. Delete applications (if any) or handle them
-            // Note: If you don't want to lose application history, you might want 
-            // to restrict delete or soft-delete. For now, we'll delete them to maintain DB integrity.
-            await connection.execute(
-                'DELETE FROM applications WHERE job_id = ?',
-                [id]
-            );
-
-            // 4. Finally delete the job
             const [result] = await connection.execute(
-                'DELETE FROM jobs WHERE id = ? AND recruiter_id = ?',
+                "UPDATE jobs SET status = 'deleted' WHERE id = ? AND recruiter_id = ?",
                 [id, recruiter_id]
             );
 
-            if (result.affectedRows === 0) {
-                await connection.rollback();
-                return false;
-            }
-
-            await connection.commit();
-            return true;
+            return result.affectedRows > 0;
         } catch (error) {
-            if (connection) await connection.rollback();
             throw error;
         } finally {
             if (connection) connection.release();
@@ -351,6 +390,50 @@ class JobModel {
         // Note: IDs from Chroma might be strings while DB IDs are integers
         const idMap = new Map(rows.map(job => [String(job.id), job]));
         return ids.map(id => idMap.get(String(id))).filter(job => job !== undefined);
+    }
+
+    static async getDashboardStats(recruiter_id) {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            const [candidateCount] = await connection.execute(
+                `SELECT COUNT(*) as total FROM applications a JOIN jobs j ON a.job_id = j.id WHERE j.recruiter_id = ?`,
+                [recruiter_id]
+            );
+            const [jobCount] = await connection.execute(
+                `SELECT COUNT(*) as total FROM jobs WHERE recruiter_id = ? AND status = 'open'`,
+                [recruiter_id]
+            );
+            const [recentCandidates] = await connection.execute(
+                `SELECT a.id, a.status, a.applied_at, u.name as candidate_name, u.email, j.title as job_title, j.id as job_id
+                 FROM applications a
+                 JOIN users u ON a.user_id = u.id
+                 JOIN jobs j ON a.job_id = j.id
+                 WHERE j.recruiter_id = ?
+                 ORDER BY a.applied_at DESC
+                 LIMIT 5`,
+                 [recruiter_id]
+            );
+            const [popularJobs] = await connection.execute(
+                `SELECT j.id, j.title, COUNT(a.id) as application_count
+                 FROM jobs j
+                 LEFT JOIN applications a ON j.id = a.job_id
+                 WHERE j.recruiter_id = ?
+                 GROUP BY j.id, j.title
+                 ORDER BY application_count DESC
+                 LIMIT 5`,
+                 [recruiter_id]
+            );
+
+            return {
+                totalCandidates: candidateCount[0].total,
+                activeJobs: jobCount[0].total,
+                recentCandidates,
+                popularJobs
+            };
+        } finally {
+            if (connection) connection.release();
+        }
     }
 }
 

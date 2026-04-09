@@ -287,6 +287,67 @@ class UserModel {
         // In our DB.md, we have ON DELETE CASCADE for profiles and cv_files etc.
         await pool.execute('DELETE FROM users WHERE id = ?', [id]);
     }
+
+    static async getAdminDashboardStats() {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            
+            // Users by role
+            const [userStatsRows] = await connection.execute('SELECT role, COUNT(*) as count FROM users GROUP BY role');
+            let totalCandidates = 0;
+            let totalRecruiters = 0;
+            let totalAdmins = 0;
+            userStatsRows.forEach(row => {
+                if (row.role === 'candidate') totalCandidates = row.count;
+                else if (row.role === 'recruiter') totalRecruiters = row.count;
+                else if (row.role === 'admin') totalAdmins = row.count;
+            });
+            const totalUsers = parseInt(totalCandidates) + parseInt(totalRecruiters) + parseInt(totalAdmins);
+
+            // Job stats
+            const [jobStats] = await connection.execute('SELECT COUNT(*) as total FROM jobs');
+            
+            // CV stats
+            const [cvStats] = await connection.execute('SELECT COUNT(*) as total FROM cv_files');
+            
+            // Applications stats
+            const [appStats] = await connection.execute('SELECT COUNT(*) as total FROM applications');
+
+            // Recent users
+            const [recentUsers] = await connection.execute(`
+                SELECT id, name, email, role, status, created_at 
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT 5
+            `);
+
+            // Recent jobs
+            const [recentJobs] = await connection.execute(`
+                SELECT j.id, j.title, j.created_at, u.name as recruiter_name 
+                FROM jobs j 
+                JOIN users u ON j.recruiter_id = u.id 
+                ORDER BY j.created_at DESC 
+                LIMIT 5
+            `);
+
+            return {
+                users: {
+                    total: totalUsers,
+                    candidates: parseInt(totalCandidates),
+                    recruiters: parseInt(totalRecruiters),
+                    admins: parseInt(totalAdmins)
+                },
+                jobs: parseInt(jobStats[0].total),
+                cvs: parseInt(cvStats[0].total),
+                applications: parseInt(appStats[0].total),
+                recentUsers,
+                recentJobs
+            };
+        } finally {
+            if (connection) connection.release();
+        }
+    }
 }
 
 export default UserModel;

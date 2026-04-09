@@ -13,6 +13,10 @@ const jobService = {
     return await apiClient.get('/jobs/recruiter/my-jobs');
   },
 
+  getRecruiterDashboard: async () => {
+    return await apiClient.get('/jobs/recruiter/dashboard');
+  },
+
   getJobById: async (id) => {
     return await apiClient.get(`/jobs/${id}`);
   },

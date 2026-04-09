@@ -199,13 +199,26 @@ const JobDetail = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-10 border-b border-slate-200">
-          <div className="flex gap-6 items-start flex-1 min-w-0">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pb-10 border-b border-slate-200 relative">
+          
+          {/* Important Banner for closed/deleted jobs */}
+          {(job.status === 'closed' || job.status === 'deleted') && (
+            <div className={`absolute -top-12 left-0 right-0 p-3 rounded-lg flex items-center justify-center gap-2 font-bold text-sm ${job.status === 'deleted' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+              <span className="material-symbols-outlined text-lg">{job.status === 'deleted' ? 'warning' : 'lock'}</span>
+              {job.status === 'deleted' ? 'Tin tuyển dụng này đã bị xóa và không còn tồn tại trên hệ thống.' : 'Tin tuyển dụng này đã ngưng nhận hồ sơ ứng tuyển.'}
+            </div>
+          )}
+
+          <div className={`flex gap-6 items-start flex-1 min-w-0 ${(job.status === 'closed' || job.status === 'deleted') ? 'mt-6 opacity-70' : ''}`}>
             <div className="w-20 h-20 bg-white rounded-xl border border-slate-200 flex items-center justify-center p-2 shadow-sm shrink-0">
               <span className="material-symbols-outlined text-4xl text-slate-300">business</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 break-words">{job.title}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 break-words">
+                {job.title}
+                {job.status === 'closed' && <span className="ml-3 inline-block px-3 py-1 bg-amber-100 text-amber-700 text-sm rounded-lg align-middle">Đã đóng</span>}
+                {job.status === 'deleted' && <span className="ml-3 inline-block px-3 py-1 bg-rose-100 text-rose-700 text-sm rounded-lg align-middle">Đã xóa</span>}
+              </h1>
               <div className="flex flex-wrap items-center gap-4 text-slate-600">
                 <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">business</span> {job.company_name || 'HireMind'}</span>
                 <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-lg">calendar_today</span> Đăng ngày {formatDate(job.created_at)}</span>
@@ -225,26 +238,33 @@ const JobDetail = () => {
                   <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span> Tiếp tục phỏng vấn AI
                 </Link>
             ) : (
-                <Link 
+                <button 
                   onClick={(e) => {
                       if (!hasApplication && user) {
                           e.preventDefault();
-                          alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
-                          setIsApplyModalOpen(true);
+                          if (job.status === 'closed' || job.status === 'deleted') {
+                              alert('Công việc này không còn nhận ứng tuyển.');
+                          } else {
+                              alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
+                              setIsApplyModalOpen(true);
+                          }
                       } else if (!user) {
                           e.preventDefault();
                           alert('Vui lòng đăng nhập!');
+                      } else {
+                          // Nếu có application rồi thì chuyển hướng
+                          window.location.href = `/interview/${id}`;
                       }
                   }}
-                  to={`/interview/${id}`} 
                   className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-900 border border-slate-300 rounded-lg font-bold text-sm hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all flex items-center justify-center gap-2 whitespace-nowrap group">
                   <span className="material-symbols-outlined text-lg group-hover:rotate-12 transition-transform">record_voice_over</span> Phỏng vấn AI
-                </Link>
+                </button>
             )}
             <button 
+              disabled={job.status === 'closed' || job.status === 'deleted'}
               onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
-              className="flex-1 md:flex-none px-8 py-3 bg-primary text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-primary/10 whitespace-nowrap">
-              Ứng tuyển ngay
+              className={`flex-1 md:flex-none px-8 py-3 rounded-lg font-bold text-sm transition-all shadow-lg whitespace-nowrap ${(job.status === 'closed' || job.status === 'deleted') ? 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none' : 'bg-primary text-white hover:opacity-90 shadow-primary/10'}`}>
+              {(job.status === 'closed' || job.status === 'deleted') ? 'Đã đóng ứng tuyển' : 'Ứng tuyển ngay'}
             </button>
           </div>
         </div>
@@ -254,11 +274,19 @@ const JobDetail = () => {
           <div className="lg:col-span-8 space-y-12">
             {/* AI Analysis Card */}
             {!isAnalyzed ? (
-              <section className="bg-slate-50 border border-slate-200 p-8 rounded-2xl shadow-sm relative overflow-hidden hover:border-primary/30 transition-colors">
+              <section className={`bg-slate-50 border border-slate-200 p-8 rounded-2xl shadow-sm relative overflow-hidden transition-colors ${(job.status === 'closed' || job.status === 'deleted') ? 'opacity-70 pointer-events-none' : 'hover:border-primary/30'}`}>
                 <div className="flex items-center gap-2 mb-6 text-slate-700">
                   <span className="material-symbols-outlined text-lg text-primary">auto_awesome</span>
                   <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Trợ lý AI HireMind</span>
                 </div>
+                {/* Overlay disabling interaction if closed */}
+                {(job.status === 'closed' || job.status === 'deleted') && (
+                  <div className="absolute inset-0 bg-slate-50/50 backdrop-blur-[1px] z-20 flex items-center justify-center">
+                    <span className="bg-white/90 px-4 py-2 rounded-lg text-slate-600 font-bold shadow-sm border border-slate-200 text-sm">
+                      Tính năng phân tích AI bị vô hiệu hóa do công việc đã ngưng hoạt động.
+                    </span>
+                  </div>
+                )}
                 <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
                   <div className="flex-1 space-y-3">
                     <h3 className="text-xl font-bold text-slate-900">Kiểm tra mức độ phù hợp với yêu cầu</h3>
@@ -440,9 +468,10 @@ const JobDetail = () => {
               </div>
               <div className="mt-8 pt-6 border-t border-slate-100">
                 <button 
+                  disabled={job.status === 'closed' || job.status === 'deleted'}
                   onClick={() => user ? setIsApplyModalOpen(true) : alert('Vui lòng đăng nhập')}
-                  className="w-full py-4 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-all mb-3 text-sm">
-                  Ứng tuyển ngay
+                  className={`w-full py-4 rounded-xl font-bold transition-all mb-3 text-sm ${(job.status === 'closed' || job.status === 'deleted') ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-primary text-white hover:opacity-90'}`}>
+                  {(job.status === 'closed' || job.status === 'deleted') ? 'Đã đóng ứng tuyển' : 'Ứng tuyển ngay'}
                 </button>
                 {interviewStatus === 'completed' ? (
                     <Link to={`/interview/${id}`} className="w-full py-3.5 bg-green-50 text-green-700 border-2 border-green-200 rounded-xl font-bold hover:bg-green-100 transition-all mb-4 flex items-center justify-center gap-2 text-sm group">
@@ -455,24 +484,29 @@ const JobDetail = () => {
                       Tiếp tục phỏng vấn thử
                     </Link>
                 ) : (
-                    <Link 
+                    <button 
                       onClick={(e) => {
                           if (!hasApplication && user) {
                               e.preventDefault();
-                              alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
-                              setIsApplyModalOpen(true);
+                              if (job.status === 'closed' || job.status === 'deleted') {
+                                  alert('Công việc này không còn nhận ứng tuyển.');
+                              } else {
+                                  alert('Chức năng phỏng vấn AI được cấp quyền sau khi bạn ứng tuyển!\nVui lòng ứng tuyển vào công việc này trước.');
+                                  setIsApplyModalOpen(true);
+                              }
                           } else if (!user) {
                               e.preventDefault();
                               alert('Vui lòng đăng nhập!');
+                          } else {
+                              window.location.href = `/interview/${id}`;
                           }
                       }}
-                      to={`/interview/${id}`} 
                       className="w-full py-3.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl font-bold hover:bg-slate-900 hover:text-white transition-all mb-4 flex items-center justify-center gap-2 text-sm group">
                       <span className="material-symbols-outlined text-lg group-hover:rotate-12 transition-transform">record_voice_over</span>
                       Phỏng vấn thử với AI
-                    </Link>
+                    </button>
                 )}
-                <p className="text-[11px] text-center text-slate-400 italic">Hạn chót ứng tuyển: 30/11/2023</p>
+                {job.status === 'open' && <p className="text-[11px] text-center text-slate-400 italic">Hạn chót ứng tuyển: 30/11/2023</p>}
               </div>
 
               {/* Company Mini Section */}
