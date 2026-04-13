@@ -18,25 +18,60 @@ const JobsPage = () => {
   const [cvLoading, setCvLoading] = useState(false);
   const [isRecommendationMode, setIsRecommendationMode] = useState(false);
   const [allJobsCache, setAllJobsCache] = useState({ jobs: [], total: 0 });
+  const [filters, setFilters] = useState({ search: '', location: '', type: '', level: '' });
+  const [provinces, setProvinces] = useState([]);
   const user = getUser();
 
   useEffect(() => {
     fetchJobs();
+    fetchProvinces();
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchProvinces = async () => {
+    try {
+      const response = await fetch('https://provinces.open-api.vn/api/');
+      const data = await response.json();
+      setProvinces(data);
+    } catch (error) {
+      console.error('Error fetching provinces:', error);
+    }
+  };
+
+  const formatProvinceName = (name) => {
+    return name.replace(/^(Thành phố |Tỉnh )/i, '');
+  };
+
+  const fetchJobs = async (appliedFilters = filters) => {
     try {
       setLoading(true);
-      const data = await jobService.getAllJobs({ limit: 10 });
+      const data = await jobService.getAllJobs({ limit: 10, ...appliedFilters });
       setJobs(data.jobs);
       setTotal(data.total);
-      setAllJobsCache(data);
+      if (!appliedFilters.search && !appliedFilters.location && !appliedFilters.type && !appliedFilters.level) {
+        setAllJobsCache(data);
+      }
       setIsRecommendationMode(false);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchJobs(filters);
+  };
+
+  const clearFilters = () => {
+    const emptyFilters = { search: '', location: '', type: '', level: '' };
+    setFilters(emptyFilters);
+    fetchJobs(emptyFilters);
   };
 
   const handleFileChange = async (e) => {
@@ -106,6 +141,7 @@ const JobsPage = () => {
   const resetJobs = () => {
     setJobs(allJobsCache.jobs);
     setTotal(allJobsCache.total);
+    setFilters({ search: '', location: '', type: '', level: '' });
     setIsRecommendationMode(false);
   };
 
@@ -186,6 +222,99 @@ const JobsPage = () => {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Search and Filters Section */}
+        <section className="mx-auto max-w-6xl px-6 relative z-20">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3">
+              {/* Search Input */}
+              <div className="flex-[1.5] relative border border-slate-200 rounded-xl hover:border-primary/30 transition-colors bg-white">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input 
+                  type="text" 
+                  name="search"
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  placeholder="Tên công việc, từ khóa..." 
+                  className="w-full bg-transparent py-3 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-0"
+                />
+              </div>
+              
+              {/* Location */}
+              <div className="flex-1 relative border border-slate-200 rounded-xl hover:border-primary/30 transition-colors bg-white">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">location_on</span>
+                <select 
+                  name="location"
+                  value={filters.location}
+                  onChange={handleFilterChange}
+                  className="w-full bg-transparent py-3 pl-11 pr-10 text-sm font-medium focus:outline-none focus:ring-0 appearance-none cursor-pointer truncate"
+                >
+                  <option value="">Tất cả địa điểm</option>
+                  {provinces.map(p => (
+                    <option key={p.code} value={formatProvinceName(p.name)}>{formatProvinceName(p.name)}</option>
+                  ))}
+                </select>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+              </div>
+
+              {/* Type */}
+              <div className="flex-1 relative border border-slate-200 rounded-xl hover:border-primary/30 transition-colors bg-white">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">work</span>
+                <select 
+                  name="type"
+                  value={filters.type}
+                  onChange={handleFilterChange}
+                  className="w-full bg-transparent py-3 pl-11 pr-10 text-sm font-medium focus:outline-none focus:ring-0 appearance-none cursor-pointer truncate"
+                >
+                  <option value="">Tất cả hình thức</option>
+                  <option value="fulltime">Toàn thời gian</option>
+                  <option value="parttime">Bán thời gian</option>
+                  <option value="intern">Thực tập</option>
+                  <option value="freelance">Freelance</option>
+                </select>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+              </div>
+              
+              {/* Level */}
+              <div className="flex-1 relative border border-slate-200 rounded-xl hover:border-primary/30 transition-colors bg-white">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">military_tech</span>
+                <select 
+                  name="level"
+                  value={filters.level}
+                  onChange={handleFilterChange}
+                  className="w-full bg-transparent py-3 pl-11 pr-10 text-sm font-medium focus:outline-none focus:ring-0 appearance-none cursor-pointer truncate"
+                >
+                  <option value="">Tất cả cấp độ</option>
+                  <option value="intern">Intern</option>
+                  <option value="fresher">Fresher</option>
+                  <option value="junior">Junior</option>
+                  <option value="mid">Mid-level</option>
+                  <option value="senior">Senior</option>
+                  <option value="lead">Lead</option>
+                  <option value="manager">Manager</option>
+                </select>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+              </div>
+
+              {/* Submit */}
+              <button type="submit" className="bg-primary text-white rounded-xl px-8 py-3 font-bold hover:bg-slate-800 transition-colors whitespace-nowrap shadow-sm">
+                Tìm kiếm
+              </button>
+              
+              {/* Clear Filters */}
+              {(filters.search || filters.location || filters.type || filters.level) && (
+                <button 
+                  type="button" 
+                  onClick={clearFilters}
+                  className="absolute -top-3 -right-3 size-8 bg-white text-slate-400 rounded-full shadow-md border border-slate-100 flex items-center justify-center hover:text-rose-500 hover:border-rose-100 transition-all z-10"
+                  title="Xóa bộ lọc"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              )}
+            </form>
           </div>
         </section>
 
