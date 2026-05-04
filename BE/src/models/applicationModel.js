@@ -43,7 +43,7 @@ class ApplicationModel {
         try {
             connection = await pool.getConnection();
             const [rows] = await connection.execute(
-                `SELECT a.*, j.title as job_title, rp.company_name, c.file_name as cv_name
+                `SELECT a.*, j.title as job_title, j.status as job_status, rp.company_name, c.file_name as cv_name
                  FROM applications a
                  JOIN jobs j ON a.job_id = j.id
                  LEFT JOIN recruiter_profiles rp ON j.recruiter_id = rp.user_id
@@ -53,6 +53,20 @@ class ApplicationModel {
                 [user_id]
             );
             return rows;
+        } finally {
+            if (connection) connection.release();
+        }
+    }
+
+    static async deleteByUser(application_id, user_id) {
+        let connection;
+        try {
+            connection = await pool.getConnection();
+            const [result] = await connection.execute(
+                `DELETE FROM applications WHERE id = ? AND user_id = ?`,
+                [application_id, user_id]
+            );
+            return result.affectedRows > 0;
         } finally {
             if (connection) connection.release();
         }

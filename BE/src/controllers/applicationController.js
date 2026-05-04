@@ -82,3 +82,21 @@ export const getMyApplications = async (req, res) => {
         res.status(500).json({ message: 'Lỗi server' });
     }
 };
+
+export const deleteMyApplication = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const appId = req.params.id;
+        
+        const success = await ApplicationModel.deleteByUser(appId, userId);
+        
+        if (!success) {
+            return res.status(404).json({ message: 'Không tìm thấy đơn ứng tuyển hoặc bạn không có quyền xóa' });
+        }
+        
+        res.status(200).json({ message: 'Đã xóa đơn ứng tuyển thành công' });
+    } catch (error) {
+        console.error('Lỗi khi xóa đơn ứng tuyển:', error);
+        res.status(500).json({ message: 'Lỗi server khi xóa đơn ứng tuyển' });
+    }
+};

@@ -86,6 +86,33 @@ const ProfileApplications = () => {
     if (filter === 'all') return true;
     return app.status === filter;
   });
+
+  const handleDeleteApplication = async (id) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa đơn ứng tuyển này không? Hành động này không thể hoàn tác.')) return;
+    
+    try {
+      await apiClient.delete(`/users/applications/${id}`);
+      setApplications(applications.filter(app => app.id !== id));
+      alert('Đã xóa đơn ứng tuyển thành công.');
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Có lỗi xảy ra khi xóa đơn ứng tuyển.');
+    }
+  };
+
+  const getJobStatusBadge = (status) => {
+    switch (status) {
+      case 'open':
+        return <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">OPEN</span>;
+      case 'closed':
+        return <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">CLOSED</span>;
+      case 'deleted':
+        return <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">DELETED</span>;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="bg-slate-50 text-slate-900 h-screen flex flex-col font-display antialiased">
       <Navbar />
@@ -147,10 +174,10 @@ const ProfileApplications = () => {
             {/* Application List */}
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-6">
               <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 grid grid-cols-12 gap-4">
-                <div className="col-span-12 md:col-span-6 text-[11px] uppercase tracking-wider font-bold text-slate-500">Công việc</div>
-                <div className="hidden md:block col-span-3 text-[11px] uppercase tracking-wider font-bold text-slate-500">Ngày ứng tuyển</div>
-                <div className="hidden md:block col-span-2 text-[11px] uppercase tracking-wider font-bold text-slate-500">Trạng thái</div>
-                <div className="hidden md:block col-span-1 text-[11px] uppercase tracking-wider font-bold text-slate-500 text-right">Thao tác</div>
+                <div className="col-span-12 md:col-span-5 text-[11px] uppercase tracking-wider font-bold text-slate-500">Công việc</div>
+                <div className="hidden md:block col-span-3 text-[11px] uppercase tracking-wider font-bold text-slate-500 text-center">Ngày ứng tuyển</div>
+                <div className="hidden md:block col-span-2 text-[11px] uppercase tracking-wider font-bold text-slate-500 text-center">Trạng thái</div>
+                <div className="hidden md:block col-span-2 text-[11px] uppercase tracking-wider font-bold text-slate-500 text-right pr-4">Thao tác</div>
               </div>
 
               <div className="divide-y divide-slate-100 bg-white">
@@ -162,27 +189,37 @@ const ProfileApplications = () => {
                 ) : filteredApplications.length > 0 ? (
                   filteredApplications.map((app) => (
                     <div key={app.id} className="px-6 py-6 grid grid-cols-12 gap-4 items-center hover:bg-slate-50/50 transition-colors group">
-                      <div className="col-span-12 md:col-span-6 flex items-center gap-4">
+                      <div className="col-span-12 md:col-span-5 flex items-center gap-4">
                         <div className="size-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined text-[20px] text-slate-400">domain</span>
                         </div>
                         <div className="flex flex-col truncate">
-                          <Link to={`/jobs/${app.job_id}`} className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
-                            {app.job_title}
-                          </Link>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <Link to={`/jobs/${app.job_id}`} className="text-[14px] font-bold text-slate-900 truncate group-hover:text-primary transition-colors">
+                              {app.job_title}
+                            </Link>
+                            {getJobStatusBadge(app.job_status)}
+                          </div>
                           <span className="text-[12px] font-medium text-slate-500 truncate">{app.company_name || 'HireMind Partner'}</span>
                         </div>
                       </div>
-                      <div className="hidden md:flex col-span-3 items-center">
+                      <div className="hidden md:flex col-span-3 items-center justify-center">
                         <span className="text-[13px] text-slate-600 font-medium">{formatDate(app.applied_at)}</span>
                       </div>
-                      <div className="hidden md:block col-span-2">
+                      <div className="hidden md:flex col-span-2 justify-center">
                         {getStatusBadge(app.status)}
                       </div>
-                      <div className="hidden md:flex col-span-1 items-center justify-end">
+                      <div className="hidden md:flex col-span-2 items-center justify-end gap-3">
                         <Link to={`/jobs/${app.job_id}`} className="text-[13px] font-bold text-slate-500 hover:text-primary transition-colors whitespace-nowrap">
                           Chi tiết
                         </Link>
+                        <button 
+                          onClick={() => handleDeleteApplication(app.id)}
+                          className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                          title="Xóa đơn ứng tuyển"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">delete</span>
+                        </button>
                       </div>
                     </div>
                   ))

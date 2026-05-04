@@ -11,6 +11,8 @@ const JobsPage = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 9;
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [userCvs, setUserCvs] = useState([]);
@@ -41,10 +43,11 @@ const JobsPage = () => {
     return name.replace(/^(Thành phố |Tỉnh )/i, '');
   };
 
-  const fetchJobs = async (appliedFilters = filters) => {
+  const fetchJobs = async (appliedFilters = filters, currentPage = 1) => {
     try {
       setLoading(true);
-      const data = await jobService.getAllJobs({ limit: 10, ...appliedFilters });
+      const offset = (currentPage - 1) * limit;
+      const data = await jobService.getAllJobs({ limit, offset, ...appliedFilters });
       setJobs(data.jobs);
       setTotal(data.total);
       if (!appliedFilters.search && !appliedFilters.location && !appliedFilters.type && !appliedFilters.level) {
@@ -65,13 +68,15 @@ const JobsPage = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchJobs(filters);
+    setPage(1);
+    fetchJobs(filters, 1);
   };
 
   const clearFilters = () => {
     const emptyFilters = { search: '', location: '', type: '', level: '' };
     setFilters(emptyFilters);
-    fetchJobs(emptyFilters);
+    setPage(1);
+    fetchJobs(emptyFilters, 1);
   };
 
   const handleFileChange = async (e) => {
@@ -139,10 +144,11 @@ const JobsPage = () => {
   };
 
   const resetJobs = () => {
-    setJobs(allJobsCache.jobs);
-    setTotal(allJobsCache.total);
-    setFilters({ search: '', location: '', type: '', level: '' });
+    const emptyFilters = { search: '', location: '', type: '', level: '' };
+    setFilters(emptyFilters);
     setIsRecommendationMode(false);
+    setPage(1);
+    fetchJobs(emptyFilters, 1);
   };
 
   const formatSalary = (min, max, currency) => {
@@ -405,9 +411,25 @@ const JobsPage = () => {
               </div>
             )}
 
-            {!loading && total > jobs.length && (
-              <div className="mt-12 text-center">
-                <button className="text-sm font-bold text-slate-500 hover:text-primary transition-colors">Xem thêm vị trí</button>
+            {!loading && !isRecommendationMode && total > 0 && (
+              <div className="mt-12 flex justify-center gap-2">
+                <button 
+                  onClick={() => { const newPage = Math.max(1, page - 1); setPage(newPage); fetchJobs(filters, newPage); }}
+                  disabled={page === 1}
+                  className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  Trước
+                </button>
+                <div className="flex items-center px-4 py-2 text-sm font-semibold text-slate-700">
+                  Trang {page} / {Math.ceil(total / limit) || 1}
+                </div>
+                <button 
+                  onClick={() => { const newPage = page + 1; setPage(newPage); fetchJobs(filters, newPage); }}
+                  disabled={page >= Math.ceil(total / limit)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  Sau
+                </button>
               </div>
             )}
           </div>
